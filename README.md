@@ -11,7 +11,7 @@ There are 2 build configurations: *Debug* or *Release*.  To build
 1. First, clone this repo
 
 ```bash
-git clone https://github.com/KFTrack/KinKal.git
+git clone https://github.com/KFTrack/TrackToy.git
 ```
 
 2. Set up a new build directory; lets say `build_profile` for a profile build (or `build_debug` for a debug build)
@@ -27,7 +27,7 @@ cd build_profile
 
 ```bash
 
-cmake ../KinKal  -DCMAKE_BUILD_TYPE=[Release/Debug]
+cmake ../TrackToy  -DCMAKE_BUILD_TYPE=Release [Debug]
 
 make -j <jobs to run>
 ```
@@ -47,7 +47,7 @@ Make sure `clang-tidy` is installed, and add an extra argument to the `cmake` co
 ```bash
 mkdir build_clangtidy 
 cd build_clangtidy
-cmake ../KinKal -DCMAKE_BUILD_TYPE=[Release/Debug] -DENABLE_CLANG_TIDY=ON
+cmake ../TrackToy -DCMAKE_BUILD_TYPE=[Release/Debug] -DENABLE_CLANG_TIDY=ON
 make -j <jobs to run>
 ```
 

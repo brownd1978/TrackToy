@@ -1,6 +1,7 @@
 
 add_library(Spectra SHARED 
-    CeSpectrum.cc
+    CeMinusSpectrum.cc
+    DIOSpectrum.cc
 )
 
 # set top-level directory as include root

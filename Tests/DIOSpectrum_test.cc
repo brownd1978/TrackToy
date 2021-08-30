@@ -1,9 +1,9 @@
 //
-//  Test program for Ce Spectrum
+//  Test program for DIO Spectrum
 //
-#include "TrackToy/Spectra/CeSpectrum.hh"
+#include "TrackToy/Spectra/DIOSpectrum.hh"
 #include "TFile.h"
-#include "TH1F.h"
+#include "TH1D.h"
 #include "TCanvas.h"
 #include "TStyle.h"
 #include "TLegend.h"
@@ -17,7 +17,7 @@ using namespace TrackToy;
 using namespace std;
 
 void print_usage() {
-  printf("Usage: CeSpectrumTest --endpoint --emin f --emax f \n");
+  printf("Usage: DIOSpectrumTest --endpoint --emin f --emax f \n");
 }
 
 int main(int argc, char **argv) {
@@ -47,15 +47,14 @@ int main(int argc, char **argv) {
   }
 
 // setup histograms
-  TFile cefile("CeSpectrum.root","RECREATE");
-  TH1F *specth = new TH1F("specth","Ce Spectrum;E (MeV/c);d#Sigma/dE (1/MeV)",100,emin,emax);
-  // create the spectrum object
-  CeSpectrumParams ceparams(endpoint);
-  CeSpectrum cespect(ceparams);
-  double inte = cespect.integral(emin,emax);
-  cout << "Ce Spectrum integral over range " << emin << " to " << emax << " = " << inte << endl;
+  TFile cefile("DIOSpectrum.root","RECREATE");
+  TH1D *specth = new TH1D("specth","DIO Spectrum;E (MeV/c);d#Sigma/dE (1/MeV)",100,emin,emax);
+  // create the spectrum object; this is for aluminum only!
+  DIOSpectrum cespect("Data/DIO_Al.dat");
+  double inte = cespect.integral(emin,emax,100000);
+  cout << "DIO Spectrum integral over range " << emin << " to " << emax << " = " << inte << endl;
 // sample and draw the spectrum
-  static const size_t nsamples=1000;
+  static const size_t nsamples=100000;
   std::vector<double> xpts, ypts;
   xpts.reserve(nsamples);
   ypts.reserve(nsamples);
@@ -70,17 +69,17 @@ int main(int argc, char **argv) {
 //    cout << " energy " << energy << " rate " << rate << endl;
   }
   TGraph *spectg = new TGraph(nsamples,xpts.data(),ypts.data());
-  spectg->SetTitle("CeEpectrum;Energy (MeV);Rate (1/MeV)");
+  spectg->SetTitle("DIOEpectrum;Energy (MeV);Rate (1/MeV)");
   spectg->SetLineColor(kRed);
   specth->SetMinimum(0.5*xpts[1]);
   specth->SetMaximum(1.25*rmax);
 
   // plot the graph
-  TCanvas* cecan = new TCanvas("cecan","CeSpectrum",1000,1000);
+  TCanvas* diocan = new TCanvas("diocan","DIOSpectrum",1000,1000);
 //  specth->Draw();
   spectg->Draw("AL");
   // save the canvas
-  cecan->Write();
+  diocan->Write();
   cefile.Write();
   cefile.Close();
 

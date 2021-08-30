@@ -2,7 +2,8 @@
 # ls -1 *_test.cc
 
 set( TEST_SOURCE_FILES
-  CeSpectrum_test.cc
+  CeMinusSpectrum_test.cc
+  DIOSpectrum_test.cc
 )
 
 # generate root dictionary
