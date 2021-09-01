@@ -6,7 +6,7 @@ Toy MC for studying tracking resolution in precision experiments
 To build, you must have ROOT (see https://root.cern.ch/) installed, and the `bin/` directory should be on your `PATH`.
 
 
-There are 2 build configurations: *Debug* or *Release*.  To build 
+There are 2 build configurations: *Debug* or *Release*.  To build
 
 1. First, clone this repo
 
@@ -45,7 +45,7 @@ Test programs will be built in the `bin/` directory. Run them with `--help` in t
 Make sure `clang-tidy` is installed, and add an extra argument to the `cmake` command.
 
 ```bash
-mkdir build_clangtidy 
+mkdir build_clangtidy
 cd build_clangtidy
 cmake ../TrackToy -DCMAKE_BUILD_TYPE=[Release/Debug] -DENABLE_CLANG_TIDY=ON
 make -j <jobs to run>

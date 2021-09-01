@@ -23,8 +23,6 @@ namespace TrackToy {
       if (line.compare(0,1,comment) != 0 && line.size() > 0 ) {
 	std::istringstream iss(line);
 	while ((iss >> energy >> val )) {
-	  std::cout << "reading energy " << energy << " rate " << val << 
-	  " old energy " << oldenergy << std::endl;
 	  if(first){
 	    first = false;
 	    eMin_ = energy;
@@ -32,7 +30,7 @@ namespace TrackToy {
 	    // check spectrum is uniform
 	    double de = energy-oldenergy;
 	    size_t test = rint((energy-eMin_)/de);
-	    if(test != rate_.size()) std::cout << "Error: spetrum isn't uniform!" << 
+	    if(test != rate_.size()) std::cout << "Error: spetrum isn't uniform!" <<
 	    " energy " << energy << " de " << de << " rate " <<  val << " expected index " << test << " size " << rate_.size() << std::endl;
 	  }
 	  rate_.push_back(val);
@@ -42,7 +40,6 @@ namespace TrackToy {
       }
     }
     eStep_ = (eMax_ - eMin_)/(rate_.size()-1);
-    std::cout << "Build DIO spectrum emin = " << eMin_ << " emax " << eMax_ << " estep " << eStep_ << std::endl;
   }
 
   double DIOSpectrum::rate(double energy) const {
@@ -52,7 +49,7 @@ namespace TrackToy {
       if(eMin_ > 0.0){
 	double drdE = rate_[0]/(eMin_);
 	retval = std::max(0.0,rate_[0]+drdE*(energy-eMin_));
-      } else 
+      } else
 	retval = 0.0;
     } else if(energy > eMax_){
 // linear extrapolation

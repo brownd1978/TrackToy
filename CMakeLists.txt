@@ -7,7 +7,7 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
   message(STATUS "Setting build type to '${default_build_type}' as none was specified.")
   set(CMAKE_BUILD_TYPE "${default_build_type}" CACHE
       STRING "Choose the type of build." FORCE)
-  # Set the possible values of build type for cmake-gui                                                                                                                                                           
+  # Set the possible values of build type for cmake-gui
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS
     "Debug" "Release")
 endif()
@@ -77,8 +77,8 @@ endif()
 
 
 # Set project name and version
-project (KinKal 
-    LANGUAGES CXX 
+project (KinKal
+    LANGUAGES CXX
     VERSION ${_build_ver_maj}.${_build_ver_min}.${_build_ver_patch}
     DESCRIPTION "Kinematic Kalman filter track fit code package"
 )
@@ -89,8 +89,8 @@ message( STATUS "Commit short hash: ${_build_ver_commit_short}")
 
 
 # find the ROOT dependency
-find_package(ROOT REQUIRED COMPONENTS 
-        Core RIO Net Hist GenVector MLP Graf Graf3d Gpad Tree 
+find_package(ROOT REQUIRED COMPONENTS
+        Core RIO Net Hist GenVector MLP Graf Graf3d Gpad Tree
         Rint Postscript Matrix Physics MathCore Thread Gui)
 
 # include "useful" ROOT cmake functions
@@ -112,14 +112,14 @@ enable_testing()
 # compiler flags
 add_compile_options(
     # flags applied to ALL build types
-    "-Wall" 
-    "-Wno-unused-parameter" 
-    "-Wno-unused-local-typedefs" 
-    "-Werror" 
-    "-gdwarf-2" 
-    "-Werror=return-type" 
-    "-Winit-self" 
-    "-Woverloaded-virtual" 
+    "-Wall"
+    "-Wno-unused-parameter"
+    "-Wno-unused-local-typedefs"
+    "-Werror"
+    "-gdwarf-2"
+    "-Werror=return-type"
+    "-Winit-self"
+    "-Woverloaded-virtual"
     "-ftrapping-math"
     "-fdiagnostics-color=always"
 #    "-Wshadow"
@@ -138,11 +138,11 @@ include(GNUInstallDirs)
 # clang tidy
 
 if(ENABLE_CLANG_TIDY)
-    set(CMAKE_CXX_CLANG_TIDY "clang-tidy") 
+    set(CMAKE_CXX_CLANG_TIDY "clang-tidy")
 endif()
 
 if(ENABLE_CLANG_TIDY_WITH_FIXES)
-    set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-fix") 
+    set(CMAKE_CXX_CLANG_TIDY "clang-tidy;-fix")
 endif()
 
 if (CMAKE_BUILD_TYPE MATCHES "^Debug$")
@@ -168,9 +168,10 @@ endif()
 # add shared library targets
 #add_subdirectory(General)
 add_subdirectory(Spectra)
+add_subdirectory(General)
 add_subdirectory(Tests)
 
-install(TARGETS Spectra Tests
+install(TARGETS Spectra General Tests
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
@@ -178,7 +179,7 @@ install(TARGETS Spectra Tests
 # Globbing here is fine because it does not influence build behaviour
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/"
         DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/KinKal
-        FILES_MATCHING PATTERN "*.hh" 
+        FILES_MATCHING PATTERN "*.hh"
         PATTERN ".git*" EXCLUDE
 )
 
@@ -197,7 +198,7 @@ fi
 export PACKAGE_SOURCE=${CMAKE_SOURCE_DIR}
 export DEBUG_LEVEL=${CMAKE_BUILD_TYPE}
 
-# Linux: 
+# Linux:
 export LD_LIBRARY_PATH=\${PWD}/lib:\${LD_LIBRARY_PATH}
 
 # MacOS:

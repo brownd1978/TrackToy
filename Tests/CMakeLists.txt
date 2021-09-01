@@ -4,11 +4,12 @@
 set( TEST_SOURCE_FILES
   CeMinusSpectrum_test.cc
   DIOSpectrum_test.cc
+  MuonRange_test.cc
 )
 
 # generate root dictionary
 
-ROOT_GENERATE_DICTIONARY(TestsDict 
+ROOT_GENERATE_DICTIONARY(TestsDict
     LINKDEF LinkDef.h
 )
 # create shared library with ROOT dict
@@ -34,17 +35,17 @@ foreach( testsourcefile ${TEST_SOURCE_FILES} )
     # add the project root as an include directory
     # link all test tests to KinKal, MatEnv, and ROOT libraries.
     target_include_directories(Test_${testname} PRIVATE ${PROJECT_SOURCE_DIR}/..)
-    target_link_libraries( Test_${testname}  Spectra ${ROOT_LIBRARIES} )
+    target_link_libraries( Test_${testname}  Spectra General ${ROOT_LIBRARIES} )
 
     # ensure the test test executable filename is just its test name
     set_target_properties( Test_${testname} PROPERTIES OUTPUT_NAME ${testname})
 
-    # register the target as a test 
+    # register the target as a test
     add_test (NAME ${testname} COMMAND Test_${testname} )
-    set_tests_properties(${testname} PROPERTIES TIMEOUT 250) 
+    set_tests_properties(${testname} PROPERTIES TIMEOUT 250)
     set_tests_properties(${testname} PROPERTIES ENVIRONMENT "PACKAGE_SOURCE=${CMAKE_SOURCE_DIR}")
 
     install( TARGETS Test_${testname}
              RUNTIME DESTINATION bin/ )
- 
+
 endforeach( testsourcefile ${TEST_SOURCE_FILES} )
