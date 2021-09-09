@@ -2,7 +2,7 @@
 //  Model of the CeMinus spectrum including radiative effects, see https://journals.aps.org/prd/abstract/10.1103/PhysRevD.94.051301
 //
 #include "TrackToy/Spectra/CeMinusSpectrum.hh"
-#include "TrackToy/General/PhysicalConstants.h"
+#include "KinKal/General/PhysicalConstants.h"
 #include <cmath>
 #include <iostream>
 
