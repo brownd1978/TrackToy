@@ -70,22 +70,22 @@ int main(int argc, char **argv) {
   TDirectory* td = (TDirectory*)pfile->Get("StepPointMCDumper");
   TTreeReader reader("nt",td);
   TTreeReaderValue<KinKal::ParticleState> pstate(reader, "particle");
-
   TTree* ptree = (TTree*)td->Get("nt");
   cout << "Particle TTree has " << ptree->GetEntries() << " Entries" << endl;
-//  KinKal::ParticleState pstate;
-//  TBranch *part = ptree->GetBranch("particle");
-//  part->SetAddress(&pstate);
-//  for(unsigned ipart=0;ipart<ptree->GetEntries(); ++ipart){
-while (reader.Next()) {
- cout << "pstate status " <<  pstate.GetSetupStatus() << endl;
-//part->GetEntry(ipart);
+  // setup BField
+  KinKal::VEC3 bnom(0.0,0.0,1.0);
+  while (reader.Next()) {
+    cout << "pstate status " <<  pstate.GetSetupStatus() << endl;
     cout << "Read particle with position " << pstate->position3() << " time " << pstate->time() << " momentum " << pstate->momentum3() << endl;
+
+    // create a loop helix from this
+//    KinKal::LoopHelix lhelix(*pstate,bnom);
+
   }
-// setup histogram
+  // setup histogram
   TFile ptestfile("ParticleTest.root","RECREATE");
 
-//  diocan->Write();
+  //  diocan->Write();
   ptestfile.Write();
   ptestfile.Close();
   pfile->Close();
