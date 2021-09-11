@@ -72,7 +72,7 @@ int main(int argc, char **argv) {
 //    cout << " energy " << energy << " rate " << rate << endl;
   }
   TGraph *spectg = new TGraph(nsample,xpts.data(),ypts.data());
-  spectg->SetTitle("CeMinusEpectrum;Energy (MeV);Rate (1/MeV)");
+  spectg->SetTitle("CeMinusSpectrum;Energy (MeV);Rate (1/MeV)");
   spectg->SetLineColor(kRed);
 
   // plot the graph

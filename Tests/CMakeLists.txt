@@ -5,11 +5,13 @@ set( TEST_SOURCE_FILES
   CeMinusSpectrum_test.cc
   DIOSpectrum_test.cc
   MuonRange_test.cc
+  Particle_test.cc
 )
 
 # generate root dictionary
-
+include_directories(${PROJECT_SOURCE_DIR}/..)
 ROOT_GENERATE_DICTIONARY(TestsDict
+    ${PROJECT_SOURCE_DIR}/../KinKal/General/ParticleState.hh
     LINKDEF LinkDef.h
 )
 # create shared library with ROOT dict
