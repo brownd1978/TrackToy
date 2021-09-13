@@ -64,7 +64,11 @@ int main(int argc, char **argv) {
   }
 // not sure why this is necessary...
   gSystem->Load("lib/libTests.dylib");
-// open the input particle file
+  if(file.size()==0){
+    cout << "No input file specified: terminating" << endl;
+    return 1;
+  }
+  // open the input particle file
   TFile* pfile = TFile::Open(file.c_str(),"READ");
   // find the TTree in the file
   TDirectory* td = (TDirectory*)pfile->Get("StepPointMCDumper");
@@ -79,7 +83,8 @@ int main(int argc, char **argv) {
     cout << "Read particle with position " << pstate->position3() << " time " << pstate->time() << " momentum " << pstate->momentum3() << endl;
 
     // create a loop helix from this
-//    KinKal::LoopHelix lhelix(*pstate,bnom);
+    KinKal::LoopHelix lhelix(*pstate,bnom);
+    cout << "Loop Helix " << lhelix << endl;
 
   }
   // setup histogram

@@ -10,7 +10,7 @@
 
 namespace TrackToy {
   DIOSpectrum::DIOSpectrum(const char* spectrumfile) : norm_(1.0) {
-    std::string sourcedir = getenv("PACKAGE_SOURCE");
+    std::string sourcedir = getenv("TRACKTOY_SOURCE_DIR");
     std::string fullfile = sourcedir+"/"+spectrumfile;
     // read the file
     std::ifstream spectrum_stream(fullfile);

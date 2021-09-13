@@ -21,7 +21,7 @@ target_include_directories(Tests PRIVATE ${PROJECT_SOURCE_DIR}/..)
 target_include_directories(Tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 
 # link ROOT libraries
-target_link_libraries(Tests ${ROOT_LIBRARIES})
+target_link_libraries(Tests ${ROOT_LIBRARIES} ${KINKAL_LIBRARIES})
 
 # Generate test targets
 foreach( testsourcefile ${TEST_SOURCE_FILES} )
@@ -37,7 +37,7 @@ foreach( testsourcefile ${TEST_SOURCE_FILES} )
     # add the project root as an include directory
     # link all test tests to KinKal, MatEnv, and ROOT libraries.
     target_include_directories(Test_${testname} PRIVATE ${PROJECT_SOURCE_DIR}/..)
-    target_link_libraries( Test_${testname}  Spectra General ${ROOT_LIBRARIES} )
+    target_link_libraries( Test_${testname}  Spectra General ${ROOT_LIBRARIES} ${KINKAL_LIBRARIES})
 
     # ensure the test test executable filename is just its test name
     set_target_properties( Test_${testname} PROPERTIES OUTPUT_NAME ${testname})
@@ -45,7 +45,7 @@ foreach( testsourcefile ${TEST_SOURCE_FILES} )
     # register the target as a test
     add_test (NAME ${testname} COMMAND Test_${testname} )
     set_tests_properties(${testname} PROPERTIES TIMEOUT 250)
-    set_tests_properties(${testname} PROPERTIES ENVIRONMENT "PACKAGE_SOURCE=${CMAKE_SOURCE_DIR}")
+    set_tests_properties(${testname} PROPERTIES ENVIRONMENT "TRACKTOY_SOURCE_DIR=${CMAKE_SOURCE_DIR}")
 
     install( TARGETS Test_${testname}
              RUNTIME DESTINATION bin/ )

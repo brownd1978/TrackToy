@@ -12,7 +12,7 @@
 
 namespace TrackToy {
   MuonRange::MuonRange(const char* rangefile, double density) : density_(density) {
-    std::string sourcedir = getenv("PACKAGE_SOURCE");
+    std::string sourcedir = getenv("TRACKTOY_SOURCE_DIR");
     std::string fullfile = sourcedir+"/"+rangefile;
 //    std::cout << "Reading file " << fullfile << std::endl;
     // read the file

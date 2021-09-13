@@ -38,6 +38,20 @@ set(CMAKE_CXX_STANDARD_REQUIRED on)
 # make sure CMake is able to find ROOT
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
 
+# check for KinKal
+list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR})
+set(CMAKE_FIND_LIBRARY_PREFIXES lib)
+set(CMAKE_FIND_LIBRARY_SUFFIXES .dylib)
+MESSAGE("CMAKE_FIND_LIBRARY_PREFIXES =${CMAKE_FIND_LIBRARY_PREFIXES}")
+MESSAGE("CMAKE_FIND_LIBRARY_SUFFIXES =${CMAKE_FIND_LIBRARY_SUFFIXES}")
+MESSAGE("CMAKE_SOURCE_DIR =${CMAKE_SOURCE_DIR}")
+MESSAGE("CMAKE_MODULE_PATH =${CMAKE_MODULE_PATH}")
+FIND_PACKAGE(KINKAL REQUIRED)
+
+IF(NOT KINKAL_FOUND)
+    MESSAGE(FATAL_ERROR "Could not find KinKal. You need to source (KinKal build directory)/setup.sh")
+ENDIF()
+
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # versioning
@@ -195,7 +209,6 @@ if [ \"\$sourced\" = \"0\" ];then
     echo \"You should be sourcing this file, not executing it.\"
     exit 1
 fi
-export PACKAGE_SOURCE=${CMAKE_SOURCE_DIR}
 export DEBUG_LEVEL=${CMAKE_BUILD_TYPE}
 
 # Linux:
@@ -203,6 +216,10 @@ export LD_LIBRARY_PATH=\${PWD}/lib:\${LD_LIBRARY_PATH}
 
 # MacOS:
 export DYLD_FALLBACK_LIBRARY_PATH=\${PWD}/lib:\${ROOT_LIB}:\${DYLD_FALLBACK_LIBRARY_PATH}
+
+# Define the TrackToy package for others:
+export TRACKTOY_SOURCE_DIR=${CMAKE_SOURCE_DIR}
+export TRACKTOY_LIBRARY_DIR=\${PWD}/lib
 
 ")
 
