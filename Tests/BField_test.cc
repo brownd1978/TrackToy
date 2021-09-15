@@ -63,51 +63,21 @@ int main(int argc, char **argv) {
   // open the input file and parse
   std::string sourcedir = getenv("TRACKTOY_SOURCE_DIR");
   std::string fullfile = sourcedir+"/"+file;
-  // read the file
-  std::ifstream spectrum_stream(fullfile);
-  std::string line;
-  bool first(true);
-  static std::string comment("#");
-  double zmax, bz, zmin, zold;
-  vector<double> axial;
-  axial.reserve(1000);
-  while (std::getline(spectrum_stream, line)) {
-    // skip comments and blank lines
-    if (line.compare(0,1,comment) != 0 && line.size() > 0 ) {
-      std::istringstream iss(line);
-//      cout << "read line " << line << endl;
-      if (iss >> zmax >> bz ) {
-//	cout << "read z " << zmax << " b " << bz << endl;
-	if(first){
-	  first = false;
-	  zmin = zmax;
-	}
-	if(axial.size()>0){
-	  // check uniformity
-	  double dz = zmax - (zmin + (zmax-zold)*axial.size());
-	  if(fabs(dz) > 1e-5) cout << "Error: field spec isn't uniform!" << dz << " " << zmax << " " << axial.size() << endl;
-	}
-	zold = zmax;
-	axial.push_back(bz);
-      }
-    }
-  }
-  cout << "Read axial field between " << zmin << " and " << zmax << " with " << axial.size() << " values: " << endl;
-//  for(auto bz : axial) cout << "Bz =" << bz << endl;
-
-  KinKal::AxialBFieldMap axfield(zmin,zmax,axial);
+  KinKal::AxialBFieldMap axfield(fullfile);
+  cout << "axial field between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
+    << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;
   // setup histogram
   TFile btestfile("BFieldTest.root","RECREATE");
-  int nzbin = (int)std::ceil((zmax-zmin)/step);
+  int nzbin = (int)std::ceil((axfield.zMax()-axfield.zMin())/step);
   int nrbin = (int)std::ceil(rmax/step);
-  TH1F* bzproj = new TH1F("bzproj","Bz field value;Z (mm); Bz (Tesla)", nzbin,zmin,zmax);
-  TH1F* brproj = new TH1F("brproj","Br field value at rmax;Z (mm); Br (Tesla)", nzbin,zmin,zmax);
+  TH1F* bzproj = new TH1F("bzproj","Bz field value;Z (mm); Bz (Tesla)", nzbin,axfield.zMin(),axfield.zMax());
+  TH1F* brproj = new TH1F("brproj","Br field value at rmax;Z (mm); Br (Tesla)", nzbin,axfield.zMin(),axfield.zMax());
   TH2F* brmap = new TH2F("brmap","Br field value;Z (mm); R (mm); Br (Tesla)",
-      nzbin,zmin,zmax,
+      nzbin,axfield.zMin(),axfield.zMax(),
       nrbin,0.0,rmax);
   // sample the field on a grid
   for(int iz =0; iz<nzbin; ++iz){
-    double zval =zmin+(iz+0.5)*step;
+    double zval =axfield.zMin()+(iz+0.5)*step;
     KinKal::VEC3 zpos(rmax,0.0,zval);
     KinKal::VEC3 bvec = axfield.fieldVect(zpos);
     bzproj->SetBinContent(iz+1,bvec.Z());
