@@ -6,6 +6,7 @@ set( TEST_SOURCE_FILES
   DIOSpectrum_test.cc
   MuonRange_test.cc
   Particle_test.cc
+  BField_test.cc
 )
 
 # generate root dictionary
