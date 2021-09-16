@@ -1,5 +1,5 @@
 //
-//  Test program for particle propagation in a BField
+//  Test muon stopping in the target
 //
 #include "KinKal/General/AxialBFieldMap.hh"
 #include "KinKal/General/ParticleState.hh"
@@ -33,7 +33,7 @@
 using namespace std;
 
 void print_usage() {
-  printf("Usage: ParticleTest --pfile s --bfile s --zmax f --tol f --minmass f --npts i --ntrks i\n");
+  printf("Usage: ParticleTest --pfile s --bfile s --tol f  --tstep f --density f --ntrks i\n");
 }
 
 int main(int argc, char **argv) {
@@ -42,16 +42,15 @@ int main(int argc, char **argv) {
   size_t npts(1000);
   int ntrks(-1);
   string pfile, bfile;
-  double zmax(-3500), tol(1e-3);
+  double tstep(0.01), tol(1e-3);
   double minmass(100.0);
 
   static struct option long_options[] = {
     {"pfile",     required_argument, 0, 'f' },
     {"bfile",     required_argument, 0, 'F' },
     {"tol",     required_argument, 0, 't' },
-    {"minmass",     required_argument, 0, 'm' },
-    {"zmax",     required_argument, 0, 'z'  },
-    {"npts",     required_argument, 0, 'N'  },
+    {"tstep",     required_argument, 0, 'z'  },
+    {"density",     required_argument, 0, 'd'  },
     {"ntrks",     required_argument, 0, 'n'  },
     {NULL, 0,0,0}
   };
@@ -66,11 +65,9 @@ int main(int argc, char **argv) {
                  break;
       case 't' : tol = atof(optarg);
                  break;
-      case 'm' : minmass = atof(optarg);
+      case 'z' : tstep = atof(optarg);
                  break;
-      case 'z' : zmax = atof(optarg);
-                 break;
-      case 'N' : npts = atoi(optarg);
+      case 'd' : density = atof(optarg);
                  break;
       case 'n' : ntrks = atoi(optarg);
                  break;
@@ -80,7 +77,6 @@ int main(int argc, char **argv) {
   }
   // not sure why this is necessary...
   gSystem->Load("lib/libTests.dylib");
-  gSystem->Load("libGeom");
   if(pfile.size()==0){
     cout << "No input pfile specified: terminating" << endl;
     return 1;
@@ -102,19 +98,14 @@ int main(int argc, char **argv) {
   TFile ptestpfile("ParticleTest.root","RECREATE");
   std::vector<TPolyLine3D*> plhel;
   int icolor(kBlue);
-  zmax = std::min(zmax,axfield.zMax());
+  zmax = axfield.zMax();
   int itrk(0);
   while (reader.Next() && (ntrks < 0 || itrk < ntrks)) {
     // select by mass
     if(pstate->mass() > minmass){
     itrk++;
-//    cout << "pstate status " <<  pstate.GetSetupStatus() << endl;
-//    cout << "Read particle with position " << pstate->position3() << " time " << pstate->time() << " momentum " << pstate->momentum3() << endl;
-//    cout << "pVz = " << pstate->velocity().Z() << " tmax " << (zmax-pstate->position3().Z())/pstate->velocity().Z() << endl;
 
     KinKal::TimeRange range(pstate->time(),pstate->time()+(zmax-pstate->position3().Z())/pstate->velocity().Z());
-//    cout << " initial range " << range << endl;
-    // create a loop helix from this
     auto bstart = axfield.fieldVect(pstate->position3());
     KTRAJ lhelix(*pstate,bstart,range);
 //    cout << "Initial trajectory " << lhelix << endl;
