@@ -105,7 +105,7 @@ message( STATUS "Commit short hash: ${_build_ver_commit_short}")
 # find the ROOT dependency
 find_package(ROOT REQUIRED COMPONENTS
         Core RIO Net Hist GenVector MLP Graf Graf3d Gpad Tree
-        Rint Postscript Matrix Physics MathCore Thread Gui)
+        Rint Postscript Matrix Physics MathCore Thread Geom Gui)
 
 # include "useful" ROOT cmake functions
 # which are useful for building dictionaries

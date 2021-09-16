@@ -19,10 +19,10 @@
 #include "TAxis3D.h"
 #include "TPolyLine3D.h"
 #include "TPolyMarker3D.h"
+#include "TView.h"
 #include "TTUBE.h"
 #include "TBRIK.h"
 #include "TNode.h"
-#include "TGeometry.h"
 #include <stdio.h>
 #include <getopt.h>
 #include <iostream>
@@ -33,13 +33,14 @@
 using namespace std;
 
 void print_usage() {
-  printf("Usage: ParticleTest --pfile s --bfile s --zmax f --tol f --npts i\n");
+  printf("Usage: ParticleTest --pfile s --bfile s --zmax f --tol f --npts i --ntrks i\n");
 }
 
 int main(int argc, char **argv) {
   using KTRAJ=KinKal::LoopHelix;
   using PKTRAJ = KinKal::ParticleTrajectory<KTRAJ>;
   size_t npts(1000);
+  int ntrks(-1);
   string pfile, bfile;
   double zmax(-3500), tol(1e-2);
 
@@ -49,6 +50,7 @@ int main(int argc, char **argv) {
     {"tol",     required_argument, 0, 't' },
     {"zmax",     required_argument, 0, 'z'  },
     {"npts",     required_argument, 0, 'N'  },
+    {"ntrks",     required_argument, 0, 'n'  },
     {NULL, 0,0,0}
   };
   int opt;
@@ -65,6 +67,8 @@ int main(int argc, char **argv) {
       case 'z' : zmax = atof(optarg);
                  break;
       case 'N' : npts = atoi(optarg);
+                 break;
+      case 'n' : ntrks = atoi(optarg);
                  break;
       default: print_usage();
                exit(EXIT_FAILURE);
@@ -95,17 +99,19 @@ int main(int argc, char **argv) {
   std::vector<TPolyLine3D*> plhel;
   int icolor(kBlue);
   zmax = std::min(zmax,axfield.zMax());
-  while (reader.Next()) {
-    cout << "pstate status " <<  pstate.GetSetupStatus() << endl;
-    cout << "Read particle with position " << pstate->position3() << " time " << pstate->time() << " momentum " << pstate->momentum3() << endl;
-    cout << "pVz = " << pstate->velocity().Z() << " tmax " << (zmax-pstate->position3().Z())/pstate->velocity().Z() << endl;
+  int itrk(0);
+  while (reader.Next() && (ntrks < 0 || itrk < ntrks)) {
+    itrk++;
+//    cout << "pstate status " <<  pstate.GetSetupStatus() << endl;
+//    cout << "Read particle with position " << pstate->position3() << " time " << pstate->time() << " momentum " << pstate->momentum3() << endl;
+//    cout << "pVz = " << pstate->velocity().Z() << " tmax " << (zmax-pstate->position3().Z())/pstate->velocity().Z() << endl;
 
     KinKal::TimeRange range(pstate->time(),pstate->time()+(zmax-pstate->position3().Z())/pstate->velocity().Z());
-    cout << " initial range " << range << endl;
+//    cout << " initial range " << range << endl;
     // create a loop helix from this
     auto bstart = axfield.fieldVect(pstate->position3());
     KTRAJ lhelix(*pstate,bstart,range);
-    cout << "Initial trajectory " << lhelix << endl;
+//    cout << "Initial trajectory " << lhelix << endl;
     // initialize piecetraj
     PKTRAJ phelix(lhelix);
     auto pos = pstate->position3();
@@ -126,10 +132,10 @@ int main(int argc, char **argv) {
     double largest, average;
     size_t igap;
     phelix.gaps(largest, igap, average);
-    cout << "Particle piece traj with " << phelix.pieces().size() << " pieces and largest gap = "
-      << largest << " average gap = " << average << endl;
+//    cout << "Particle piece traj with " << phelix.pieces().size() << " pieces and largest gap = "
+//      << largest << " average gap = " << average << endl;
     plhel.push_back(new TPolyLine3D(npts));
-    plhel.back()->SetLineColor(icolor++);
+    plhel.back()->SetLineColor(icolor++%10);
     double tstart = phelix.range().begin();
     double ts = phelix.range().range()/(npts-1);
     KinKal::VEC3 ppos;
@@ -140,22 +146,23 @@ int main(int argc, char **argv) {
     }
   }
 // now draw
-  TCanvas* ptcan = new TCanvas("ptcan","ParticleTraj",1000,1000);
-//  TBRIK* cent = new TBRIK();
-//  TNode* cnode = new TNode();
-//  cnode->cd();
-  // Draw target
-//  TTUBE* target= new TTUBE("target","target","Aluminum",21.5,75.0,800.0);
-//  target->SetNumberOfDivisions(100);
-//  TNode* tnode = new TNode("targetnode","targetnode",target,0.0,0.0,-4300);
-//  cout << "targetnode " << cnode->GetZ() << endl;
-//  cout << "targetnode " << tnode->GetZ() << endl;
-//  cnode->Draw("gl");
-//  cnode->Draw();
-//  pnode->Draw();
+  TCanvas* ptcan = new TCanvas("Particle");
+// Draw target
+
+  TTUBE* target= new TTUBE("target","target","Aluminum",21.5,75.0,800.0);
+  target->Draw();
+  TTUBE *DS  = new TTUBE("DS","DS","void",0.0,800,4000);
+  DS->SetVisibility(0);
+  DS->Draw();
+  TNode *node1 = new TNode("NODE1","NODE1","DS");
+  node1->cd();
+  TNode* tnode = new TNode("targetnode","targetnode","target",0.0,0.0,-4300);
+  tnode->Draw();
+  node1->cd();
+  node1->Draw();
+// draw tracks
   for(auto const& ph : plhel) {
     ph->Draw();
-//    plhel.front()->Draw();
   }
   // draw the origin and axes
   TAxis3D* rulers = new TAxis3D();
@@ -165,9 +172,7 @@ int main(int argc, char **argv) {
   rulers->GetYaxis()->SetLabelColor(kCyan);
   rulers->GetZaxis()->SetAxisColor(kOrange);
   rulers->GetZaxis()->SetLabelColor(kOrange);
-  rulers->GetZaxis()->SetRange(axfield.zMin(),zmax);
-  rulers->Draw();
-
+//  rulers->Draw();
 
   ptcan->Write();
   ptestpfile.Write();
