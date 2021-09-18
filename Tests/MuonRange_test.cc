@@ -22,7 +22,7 @@ void print_usage() {
 }
 
 int main(int argc, char **argv) {
-  double emin(0.0), emax(200.0), density(0.01176); // Mu2e foil disk target density
+  double emin(0.0), emax(200.0);
   size_t nsample(10000);
   string file("Data/MuonRangeAl.dat");
 
@@ -54,7 +54,8 @@ int main(int argc, char **argv) {
 // setup histograms
   TFile murangefile("MuonRange.root","RECREATE");
   // create the object
-  MuonRange murange(file.c_str(),density);
+  MuonRange murange(file.c_str(),1.0); // unit density: return gm/cm^2
+  cout << " muon range file " << file << " has density " << murange.density() << " and ranges " << murange.rangeData().size() << endl;
 // sample and draw the range
   std::vector<double> xpts, epts, mpts;
   xpts.reserve(nsample);
@@ -71,19 +72,21 @@ int main(int argc, char **argv) {
 //    cout << " energy " << energy << " range " << range << endl;
   }
   TGraph *espectg = new TGraph(nsample,xpts.data(),epts.data());
-  espectg->SetTitle("Muon Range;Energy (MeV);Range (mm)");
+  espectg->SetTitle("Muon Range;Energy (MeV);Range (gm/cm^{2})");
   espectg->SetLineColor(kRed);
 
   TGraph *mspectg = new TGraph(nsample,xpts.data(),mpts.data());
-  mspectg->SetTitle("Muon Range;Momentum (MeV/c);Range (mm)");
+  mspectg->SetTitle("Muon Range;Momentum (MeV/c);Range (gm/cm^{2})");
   mspectg->SetLineColor(kBlue);
 
   // plot the graph
   TCanvas* mucan = new TCanvas("mucan","MuonRange",1000,1000);
   mucan->Divide(2,1);
   mucan->cd(1);
+  gPad->SetLeftMargin(0.15);
   espectg->Draw("AL");
   mucan->cd(2);
+  gPad->SetLeftMargin(0.15);
   mspectg->Draw("AL");
   // save the canvas
   mucan->Write();

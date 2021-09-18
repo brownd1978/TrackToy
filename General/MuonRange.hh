@@ -20,8 +20,10 @@ namespace TrackToy {
       double rangeEnergy(double energy) const;
 // find the range in mm given muon momentum in MeV/c
       double rangeMomentum(double mom) const;
+      double density() const { return density_; }
+      std::vector<RangeData> const& rangeData() const { return range_; }
     private:
-      double density_; // gm/cm^3
+      double density_; //gm/cm3
       std::vector<RangeData> range_;
   };
 }
