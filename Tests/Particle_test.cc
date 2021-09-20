@@ -5,6 +5,7 @@
 #include "KinKal/General/ParticleState.hh"
 #include "KinKal/Trajectory/LoopHelix.hh"
 #include "KinKal/Trajectory/ParticleTrajectory.hh"
+#include "TrackToy/General/FileFinder.hh"
 #include "TFile.h"
 #include "TSystem.h"
 #include "TDirectory.h"
@@ -29,7 +30,7 @@
 #include <vector>
 #include <string>
 
-//using namespace TrackToy;
+using namespace TrackToy;
 using namespace std;
 
 void print_usage() {
@@ -94,8 +95,8 @@ int main(int argc, char **argv) {
   TTree* ptree = (TTree*)td->Get("nt");
   cout << "Particle TTree has " << ptree->GetEntries() << " Entries" << endl;
   // setup BField
-  std::string sourcedir = getenv("TRACKTOY_SOURCE_DIR");
-  std::string fullfile = sourcedir+"/"+bfile;
+  FileFinder filefinder;
+  std::string fullfile = filefinder.fullFile(bfile);
   KinKal::AxialBFieldMap axfield(fullfile);
   cout << "axial field between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;

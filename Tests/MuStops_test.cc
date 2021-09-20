@@ -6,6 +6,7 @@
 #include "KinKal/Trajectory/LoopHelix.hh"
 #include "KinKal/Trajectory/ParticleTrajectory.hh"
 #include "TrackToy/General/MuonRange.hh"
+#include "TrackToy/General/FileFinder.hh"
 #include "TFile.h"
 #include "TSystem.h"
 #include "TDirectory.h"
@@ -18,14 +19,6 @@
 #include "TCanvas.h"
 #include "TStyle.h"
 #include "TLegend.h"
-#include "TGraph.h"
-#include "TAxis3D.h"
-#include "TPolyLine3D.h"
-#include "TPolyMarker3D.h"
-#include "TView.h"
-#include "TTUBE.h"
-#include "TBRIK.h"
-#include "TNode.h"
 #include <stdio.h>
 #include <getopt.h>
 #include <iostream>
@@ -110,8 +103,8 @@ int main(int argc, char **argv) {
   TTree* ptree = (TTree*)td->Get("nt");
   cout << "Particle TTree has " << ptree->GetEntries() << " Entries" << endl;
   // setup BField
-  std::string sourcedir = getenv("TRACKTOY_SOURCE_DIR");
-  std::string fullfile = sourcedir+"/"+bfile;
+  FileFinder filefinder;
+  std::string fullfile = filefinder.fullFile(bfile);
   AxialBFieldMap axfield(fullfile);
   cout << "axial field between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;

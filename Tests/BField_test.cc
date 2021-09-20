@@ -2,6 +2,7 @@
 //  Test program for particle propagation in a BField
 //
 #include "KinKal/General/AxialBFieldMap.hh"
+#include "TrackToy/General/FileFinder.hh"
 #include "TFile.h"
 #include "TSystem.h"
 #include "TDirectory.h"
@@ -21,7 +22,7 @@
 #include <string>
 #include <cmath>
 
-//using namespace TrackToy;
+using namespace TrackToy;
 using namespace std;
 
 void print_usage() {
@@ -61,8 +62,8 @@ int main(int argc, char **argv) {
     return 1;
   }
   // open the input file and parse
-  std::string sourcedir = getenv("TRACKTOY_SOURCE_DIR");
-  std::string fullfile = sourcedir+"/"+file;
+  FileFinder filefinder;
+  std::string fullfile = filefinder.fullFile(file);
   KinKal::AxialBFieldMap axfield(fullfile);
   cout << "axial field between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;

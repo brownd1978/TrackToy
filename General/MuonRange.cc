@@ -3,6 +3,7 @@
 //  https://pdg.lbl.gov/2021/AtomicNuclearProperties/
 //
 #include "TrackToy/General/MuonRange.hh"
+#include "TrackToy/General/FileFinder.hh"
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -13,8 +14,8 @@
 
 namespace TrackToy {
   MuonRange::MuonRange(const char* rangefile, double density) : density_(density) {
-    std::string sourcedir = getenv("TRACKTOY_SOURCE_DIR");
-    std::string fullfile = sourcedir+"/"+rangefile;
+    FileFinder filefinder;
+    std::string fullfile = filefinder.fullFile(rangefile);
     //    std::cout << "Reading file " << fullfile << std::endl;
     // read the file
     std::ifstream range_stream(fullfile);
