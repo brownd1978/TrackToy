@@ -1,4 +1,3 @@
-
 add_library(Spectra SHARED 
     CeMinusSpectrum.cc
     DIOSpectrum.cc

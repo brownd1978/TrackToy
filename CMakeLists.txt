@@ -180,12 +180,12 @@ if (CMAKE_BUILD_TYPE MATCHES "^Debug$")
 endif()
 
 # add shared library targets
-#add_subdirectory(General)
+add_subdirectory(Detector)
 add_subdirectory(Spectra)
 add_subdirectory(General)
 add_subdirectory(Tests)
 
-install(TARGETS Spectra General Tests
+install(TARGETS Spectra Detector General Tests
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 

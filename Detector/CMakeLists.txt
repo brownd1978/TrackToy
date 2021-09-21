@@ -1,7 +1,5 @@
-
 add_library(Detector SHARED
-#    EdmlXMLEngine.cc
-#   EdmlParser.cc
+   CylinderElem.cc
 )
 
 # set top-level directory as include root

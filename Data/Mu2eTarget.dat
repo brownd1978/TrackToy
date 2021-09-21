@@ -1,0 +1,5 @@
+#
+#  Parameters describing the Mu2e target
+# rmin rmax zpos zhalf density
+21.3 75.0 -4304.0 400.0 1.32e-2
+

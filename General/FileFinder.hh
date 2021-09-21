@@ -1,6 +1,8 @@
 //
 //  Simple class to find a file in TrackToy
 //
+#ifndef TrackToy_General_FileFinder_hh
+#define TrackToy_General_FileFinder_hh
 #include <string>
 #include <cstdlib>
 namespace TrackToy {
@@ -16,4 +18,4 @@ namespace TrackToy {
       std::string envname_, sourcedir_;
   };
 }
-
+#endif
