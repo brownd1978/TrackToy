@@ -4,6 +4,7 @@ Toy MC for studying tracking resolution in precision experiments
 ## Installation
 
 To build, you must have ROOT (see https://root.cern.ch/) installed, and the `bin/` directory should be on your `PATH`.
+You need to have also installed and built KinKal, and source KinKal setup.sh see https://github.com/KFTrack/KinKal
 
 
 There are 2 build configurations: *Debug* or *Release*.  To build

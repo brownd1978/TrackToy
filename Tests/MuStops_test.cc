@@ -55,22 +55,22 @@ int main(int argc, char **argv) {
   int opt;
   int long_index =0;
   while ((opt = getopt_long_only(argc, argv,"",
-	  long_options, &long_index )) != -1) {
+          long_options, &long_index )) != -1) {
     switch (opt) {
       case 'f' : pfile = string(optarg);
-		 break;
+                 break;
       case 'F' : bfile = string(optarg);
-		 break;
+                 break;
       case 'm' : rfile = string(optarg);
-		 break;
+                 break;
       case 't' : tol = atof(optarg);
-		 break;
+                 break;
       case 's' : tstep = atof(optarg);
-		 break;
+                 break;
       case 'n' : ntrks = atoi(optarg);
-		 break;
+                 break;
       default: print_usage();
-	       exit(EXIT_FAILURE);
+               exit(EXIT_FAILURE);
     }
   }
   // not sure why this is necessary...
@@ -130,17 +130,17 @@ int main(int argc, char **argv) {
       auto pos = pstate->position3();
       // extend to the end of the target
       while(pos.Z() < target.zmax()){
-	range.begin() = axfield.rangeInTolerance(ptraj.back(),range.begin(),tol);
-	if(range.begin() < range.end()){
-	  // Predict new position and momentum at this end, making linear correction for BField effects
-	  auto endstate = ptraj.back().state(range.begin());
-	  pos = endstate.position3();
-	  auto bend = axfield.fieldVect(pos);
-	  KTRAJ endhelix(endstate,bend,range);
-	  ptraj.append(endhelix);
-	  //      cout << "appended helix at point " << pos << " time " << range.begin() << endl;
-	} else
-	  break;
+        range.begin() = axfield.rangeInTolerance(ptraj.back(),range.begin(),tol);
+        if(range.begin() < range.end()){
+          // Predict new position and momentum at this end, making linear correction for BField effects
+          auto endstate = ptraj.back().state(range.begin());
+          pos = endstate.position3();
+          auto bend = axfield.fieldVect(pos);
+          KTRAJ endhelix(endstate,bend,range);
+          ptraj.append(endhelix);
+          //      cout << "appended helix at point " << pos << " time " << range.begin() << endl;
+        } else
+          break;
       }
       //     cout << "Particle with " << ptraj.pieces().size() << " pieces propagating from " << ptraj.position3(ptraj.range().begin())
       //       << " to " << ptraj.position3(ptraj.range().end()) << endl;
@@ -149,20 +149,28 @@ int main(int argc, char **argv) {
       target.intersect(ptraj,tranges,tstep);
       //      cout << "Found " << tranges.size() << " Intersecting ranges, with boundaries:" << endl;
       double path(0.0);
+      bool stopped(false);
       for (auto const& range : tranges) {
-	//	auto bpos = ptraj.position3(range.begin());
-	//	auto epos = ptraj.position3(range.end());
-	//	cout << range << " enters (r,z) " << bpos.Rho() << "," << bpos.Z() << " exits (r,z) " << epos.Rho() << "," << epos.Z() << endl;
-	path += range.range()*speed;
+        //auto bpos = ptraj.position3(range.begin());
+        //auto epos = ptraj.position3(range.end());
+        //cout << range << " enters (r,z) " << bpos.Rho() << "," << bpos.Z() << " exits (r,z) " << epos.Rho() << "," << epos.Z() << endl;
+        path += range.range()*speed;
+        if(path > murange){
+          stopped = true;
+          // estimate the stopping position
+          double tstop = range.end() - (path-murange)/speed;
+          pos = ptraj.position3(tstop);
+          break;
+        }
       }
       //            cout << "intersecting path = " << path << " with range " << murange << endl;
-      if(path > murange){
-	++nstopped;
-	mumoms->Fill(pstate->momentum3().R());
-	muszpos->Fill(pos.Z()-target.zpos());
-	musxypos->Fill(pos.X(),pos.Y());
+      if(stopped){
+        ++nstopped;
+        mumoms->Fill(pstate->momentum3().R());
+        muszpos->Fill(pos.Z()-target.zpos());
+        musxypos->Fill(pos.X(),pos.Y());
       } else {
-	mumomn->Fill(pstate->momentum3().R());
+        mumomn->Fill(pstate->momentum3().R());
       }
       ++nmu;
     }

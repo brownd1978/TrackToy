@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
   using PKTRAJ = KinKal::ParticleTrajectory<KTRAJ>;
   size_t npts(1000);
   int ntrks(-1);
-  string pfile, bfile;
+  string pfile, bfile("Data/DSMapDump.dat");
   double zmax(-3500), tol(1e-3);
   double minmass(100.0);
 
