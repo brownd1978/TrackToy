@@ -100,7 +100,7 @@ int main(int argc, char **argv) {
   KinKal::AxialBFieldMap axfield(fullfile);
   cout << "axial field between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;
-  TFile ptestpfile("ParticleTest.root","RECREATE");
+  TFile ptestpfile("Particle.root","RECREATE");
   std::vector<TPolyLine3D*> plhel;
   int icolor(kBlue);
   zmax = std::min(zmax,axfield.zMax());

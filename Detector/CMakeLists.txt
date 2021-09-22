@@ -1,5 +1,7 @@
 add_library(Detector SHARED
-   CylinderElem.cc
+   HollowCylinder.cc
+   Tracker.cc
+   EStar.cc
 )
 
 # set top-level directory as include root

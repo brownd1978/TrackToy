@@ -2,33 +2,34 @@
 // Detector element with hollow right cylinder geometry
 // Structured text file constructor should have contmin: rmin, rmax, zpos, halfzlength, density (gm/cm^3)
 //
-#ifndef TrackToy_Detector_CylinderElem_hh
-#define TrackToy_Detector_CylinderElem_hh
+#ifndef TrackToy_Detector_HollowCylinder_hh
+#define TrackToy_Detector_HollowCylinder_hh
 #include <string>
 #include "KinKal/General/TimeRange.hh"
 #include <vector>
 namespace TrackToy {
   using TimeRanges = std::vector<KinKal::TimeRange>;
-  class CylinderElem {
+  class HollowCylinder {
     public:
-      CylinderElem(std::string const& tgtfile); // construct from a structured text file
+      HollowCylinder(): rmin_(-1.0), rmax_(-1.0), zpos_(0.0), zhalf_(-1.0), density_(-1.0) {}
+      HollowCylinder(double rmin, double rmax, double zpos, double zhalf, double density) : rmin_(rmin), rmax_(rmax), zpos_(zpos), zhalf_(zhalf), density_(density) {}
+      HollowCylinder(std::string const& tgtfile); // construct from a structured text file
       double rmin() const { return rmin_;}
       double rmax() const { return rmax_;}
       double zmin() const { return zpos_ - zhalf_;}
       double zmax() const { return zpos_ + zhalf_;}
       double zpos() const { return zpos_;}
       double zhalf() const { return zhalf_;}
-      double density() const { return density_;}
-      double activeDensity() const { return adensity_;}
+      double density() const { return density_;} // gm/cm^3
+      double volume() const { return 2.0*M_PI*zhalf_*(rmax_*rmax_ - rmin_*rmin_); } // mm^3
       // find intersections of a trajectory with this cylinder.  Return the time ranges in which the
       // trajectory is inside the physical volume
       template<class KTRAJ> void intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const;
     private:
-      double rmin_, rmax_, zpos_, zhalf_, density_, adensity_;
-      unsigned ncells_;
+      double rmin_, rmax_, zpos_, zhalf_, density_;
   };
 
-  template<class KTRAJ> void CylinderElem::intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const {
+  template<class KTRAJ> void HollowCylinder::intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const {
     // define boundary times, assuming constant velocity
     double tmin = ktraj.zTime(zmin());
     tranges.clear();

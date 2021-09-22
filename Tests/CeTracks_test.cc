@@ -6,7 +6,8 @@
 #include "KinKal/Trajectory/LoopHelix.hh"
 #include "KinKal/Trajectory/ParticleTrajectory.hh"
 #include "TrackToy/General/FileFinder.hh"
-#include "TrackToy/Detector/CylinderElem.hh"
+#include "TrackToy/Detector/HollowCylinder.hh"
+#include "TrackToy/Detector/Tracker.hh"
 #include "TrackToy/Spectra/CeMinusSpectrum.hh"
 #include "TFile.h"
 #include "TSystem.h"
@@ -115,11 +116,12 @@ int main(int argc, char **argv) {
   cout << "axial field from file " << fullfile << " is between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;
   // setup target
-  CylinderElem target(targetfile);
+  HollowCylinder target(targetfile);
   cout << "target between " << target.zmin() << " and " << target.zmax() << " rmin " << target.rmin() << " rmax " << target.rmax() << endl;
   // setup tracker
-  CylinderElem tracker(trackerfile);
-  cout << "tracker between " << tracker.zmin() << " and " << tracker.zmax() << " rmin " << tracker.rmin() << " rmax " << tracker.rmax() << endl;
+  Tracker tracker(trackerfile);
+  auto const& trackercyl = tracker.cylinder();
+  cout << "tracker between " << trackercyl.zmin() << " and " << trackercyl.zmax() << " rmin " << trackercyl.rmin() << " rmax " << trackercyl.rmax() << endl;
   // randoms
   TRandom3 tr_; // random number generator
   // setup spectrum
@@ -160,7 +162,7 @@ int main(int argc, char **argv) {
     PKTRAJ ptraj(lhelix);
     auto pos = cestate.position3();
     // extend to the end of the tracker or to the start of the BField
-    while(pos.Z() < tracker.zmax() && pos.Z() > axfield.zMin()){
+    while(pos.Z() < trackercyl.zmax() && pos.Z() > axfield.zMin()){
       range.begin() = axfield.rangeInTolerance(ptraj.back(),range.begin(),tol);
       if(range.begin() < range.end()){
         // Predict new position and momentum at this end, making linear correction for BField effects
@@ -181,9 +183,9 @@ int main(int argc, char **argv) {
     // find intersections with tracker and target
     TimeRanges targetranges, trackerranges;
     double speed = ptraj.velocity(ptraj.range().begin()).R();// assume constant speed
-    if(ptraj.position3(ptraj.range().end()).Z() > tracker.zmax()){
+    if(ptraj.position3(ptraj.range().end()).Z() > trackercyl.zmax()){
       target.intersect(ptraj,targetranges,tstep);
-      tracker.intersect(ptraj,trackerranges,tstep);
+      trackercyl.intersect(ptraj,trackerranges,tstep);
     }
     double targetpath(0.0), trackerpath(0.0);
     for (auto const& range : targetranges) targetpath += range.range()*speed;
@@ -226,7 +228,7 @@ int main(int argc, char **argv) {
     ttarget->SetLineWidth(4);
     ttarget->SetFillColorAlpha(kBlack, 0.5);
     ttarget->Draw();
-    TTUBE* ttracker= new TTUBE("ttracker","ttracker","void",tracker.rmin(),tracker.rmax(),tracker.zhalf());
+    TTUBE* ttracker= new TTUBE("ttracker","ttracker","void",trackercyl.rmin(),trackercyl.rmax(),trackercyl.zhalf());
     ttracker->SetLineColor(kRed);
     ttracker->SetLineWidth(4);
     ttracker->SetFillColorAlpha(kRed, 0.5);
@@ -254,7 +256,7 @@ int main(int argc, char **argv) {
     rulers->GetYaxis()->SetLabelColor(kCyan);
     rulers->GetZaxis()->SetAxisColor(kOrange);
     rulers->GetZaxis()->SetLabelColor(kOrange);
-    rulers->SetAxisRange(axfield.zMin(),tracker.zmax(),"Z");
+    rulers->SetAxisRange(axfield.zMin(),trackercyl.zmax(),"Z");
     rulers->Draw();
     cetcan->Write();
   }

@@ -7,7 +7,7 @@
 #include "KinKal/Trajectory/ParticleTrajectory.hh"
 #include "TrackToy/General/MuonRange.hh"
 #include "TrackToy/General/FileFinder.hh"
-#include "TrackToy/Detector/CylinderElem.hh"
+#include "TrackToy/Detector/HollowCylinder.hh"
 #include "TFile.h"
 #include "TSystem.h"
 #include "TDirectory.h"
@@ -97,7 +97,7 @@ int main(int argc, char **argv) {
   cout << "axial field from file " << fullfile << " is between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;
   // setup target
-  CylinderElem target(tfile);
+  HollowCylinder target(tfile);
   cout << "target between " << target.zmin() << " and " << target.zmax() << " rmin " << target.rmin() << " rmax " << target.rmax() << endl;
   // muon range table
   MuonRange muonrange(rfile.c_str(),target.density());
