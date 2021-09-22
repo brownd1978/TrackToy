@@ -47,6 +47,7 @@ int main(int argc, char **argv) {
     {"particlefile",     required_argument, 0, 'f' },
     {"bfieldfile",     required_argument, 0, 'F' },
     {"muonrangefile",     required_argument, 0, 'm' },
+    {"targetfile",     required_argument, 0, 'T' },
     {"tol",     required_argument, 0, 't' },
     {"tstep",     required_argument, 0, 's'  },
     {"ntrks",     required_argument, 0, 'n'  },
@@ -62,6 +63,8 @@ int main(int argc, char **argv) {
       case 'F' : bfile = string(optarg);
                  break;
       case 'm' : rfile = string(optarg);
+                 break;
+      case 'T' : tfile = string(optarg);
                  break;
       case 't' : tol = atof(optarg);
                  break;
@@ -100,8 +103,12 @@ int main(int argc, char **argv) {
   MuonRange muonrange(rfile.c_str(),target.density());
   cout << " muon range file " << rfile << " has density " << muonrange.density() << " and ranges " << muonrange.rangeData().size() << endl;
   unsigned itrk(0);
-  // histograms
+  // create a TTree for the output
   TFile mustopfile("MuStops.root","RECREATE");
+  KinKal::VEC4 stoppos;
+  TTree* mustops = new TTree("MuStops","MuStops",1);
+  mustops->Branch("Pos",&stoppos);
+  // histograms
   TH1F* mumoms = new TH1F("mumoms","Muon momentum;Momentum (MeV/c)",120,0,120.0);
   mumoms->SetLineColor(kRed);
   mumoms->SetStats(0);
@@ -109,6 +116,7 @@ int main(int argc, char **argv) {
   mumomn->SetLineColor(kBlue);
   mumomn->SetStats(0);
   TH1F* muszpos = new TH1F("muszpos","Muon stop Z position;Z (mm)",100,-420.0,420.0);
+  TH1F* mustime = new TH1F("mustime","Muon stop Time;Time (ns)",100,0,500.0);
   TH2F* musxypos = new TH2F("musxypos","Muon stop XY position;X (mm);Y (mm)",40,-80.0,80,40,-80.0,80.0);
   unsigned nstopped(0), nmu(0);
   while (reader.Next() && (ntrks < 0 || itrk < ntrks)) {
@@ -159,7 +167,8 @@ int main(int argc, char **argv) {
           stopped = true;
           // estimate the stopping position
           double tstop = range.end() - (path-murange)/speed;
-          pos = ptraj.position3(tstop);
+          stoppos = ptraj.position4(tstop);
+//          cout << "stop at time " << tstop << " in range " << range << " position r " << stoppos.Rho() << " Z " << stoppos.Z() << endl;
           break;
         }
       }
@@ -167,8 +176,10 @@ int main(int argc, char **argv) {
       if(stopped){
         ++nstopped;
         mumoms->Fill(pstate->momentum3().R());
-        muszpos->Fill(pos.Z()-target.zpos());
-        musxypos->Fill(pos.X(),pos.Y());
+        muszpos->Fill(stoppos.Z()-target.zpos());
+        musxypos->Fill(stoppos.X(),stoppos.Y());
+        mustime->Fill(stoppos.T());
+        mustops->Fill();
       } else {
         mumomn->Fill(pstate->momentum3().R());
       }
@@ -190,6 +201,8 @@ int main(int argc, char **argv) {
   muszpos->Draw();
   muscan->cd(3);
   musxypos->Draw("colorz");
+  muscan->cd(4);
+  mustime->Draw();
 
   muscan->Write();
   mustopfile.Write();

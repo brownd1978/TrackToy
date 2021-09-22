@@ -35,29 +35,29 @@ int main(int argc, char **argv) {
   int opt;
   int long_index =0;
   while ((opt = getopt_long_only(argc, argv,"",
-	  long_options, &long_index )) != -1) {
+          long_options, &long_index )) != -1) {
     switch (opt) {
       case 'e' : endpoint = atof(optarg);
-		 break;
+                 break;
       case 'm' : emin = atof(optarg);
-		 break;
+                 break;
       case 'M' : emax = atof(optarg);
-		 break;
+                 break;
       case 'N' : nsample = atoi(optarg);
-		 break;
+                 break;
       default: print_usage();
-	       exit(EXIT_FAILURE);
+               exit(EXIT_FAILURE);
     }
   }
 
-// setup histograms
+  // setup histograms
   TFile cefile("CeMinusSpectrum.root","RECREATE");
   // create the spectrum object
   CeMinusSpectrumParams ceparams(endpoint);
   CeMinusSpectrum cespect(ceparams);
   double inte = cespect.integral(emin,emax,10000);
   cout << "CeMinus Spectrum integral over range " << emin << " to " << emax << " = " << inte << endl;
-// sample and draw the spectrum
+  // sample and draw the spectrum
   std::vector<double> xpts, ypts;
   xpts.reserve(nsample);
   ypts.reserve(nsample);
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
     double rate = cespect.rate(energy);
     ypts.push_back(rate);
     rmax = std::max(rate,rmax);
-//    cout << " energy " << energy << " rate " << rate << endl;
+    //    cout << " energy " << energy << " rate " << rate << endl;
   }
   TGraph *spectg = new TGraph(nsample,xpts.data(),ypts.data());
   spectg->SetTitle("CeMinusSpectrum;Energy (MeV);Rate (1/MeV)");

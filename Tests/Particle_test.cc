@@ -157,7 +157,7 @@ int main(int argc, char **argv) {
   TCanvas* ptcan = new TCanvas("Particle");
 // Draw target
 
-  TTUBE* target= new TTUBE("target","target","void",21.5,75.0,800.0);
+  TTUBE* target= new TTUBE("target","target","void",21.5,75.0,400.0);
   target->SetLineColor(kBlack);
   target->SetLineWidth(4);
   target->SetFillColorAlpha(kBlack, 0.5);

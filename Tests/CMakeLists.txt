@@ -8,6 +8,7 @@ set( TEST_SOURCE_FILES
   Particle_test.cc
   BField_test.cc
   MuStops_test.cc
+  CeTracks_test.cc
 )
 
 # generate root dictionary

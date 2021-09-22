@@ -16,6 +16,7 @@ namespace TrackToy {
       double rate(double energy) const;
       // integral over a range
       double integral(double elow, double ehigh, unsigned nstep=10000 ) const;
+      auto const& params() const { return params_; }
     private:
       CeMinusSpectrumParams params_;
       double norm_; // normalization to rate/MeV

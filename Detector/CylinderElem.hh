@@ -19,15 +19,17 @@ namespace TrackToy {
       double zpos() const { return zpos_;}
       double zhalf() const { return zhalf_;}
       double density() const { return density_;}
+      double activeDensity() const { return adensity_;}
       // find intersections of a trajectory with this cylinder.  Return the time ranges in which the
       // trajectory is inside the physical volume
       template<class KTRAJ> void intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const;
     private:
-      double rmin_, rmax_, zpos_, zhalf_, density_;
+      double rmin_, rmax_, zpos_, zhalf_, density_, adensity_;
+      unsigned ncells_;
   };
 
   template<class KTRAJ> void CylinderElem::intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const {
-  // define boundary times, assuming constant velocity
+    // define boundary times, assuming constant velocity
     double tmin = ktraj.zTime(zmin());
     tranges.clear();
     // search for an intersection; start with the entrance
@@ -47,16 +49,16 @@ namespace TrackToy {
       oldinside = inside;
       inside = rho > rmin() && rho < rmax();
       crosses = oldinside != inside;
-	//          cout << "ttest " << ttest << " pos " << pos << endl;
+      //          cout << "ttest " << ttest << " pos " << pos << endl;
       if(crosses){
-	if(oldinside){
-	  // finish this range
-	  tranges.back().end() = ttest;
-	}
-	else {
-	// entering: create the range
-	  tranges.push_back(KinKal::TimeRange(ttest,ttest));
-	}
+        if(oldinside){
+          // finish this range
+          tranges.back().end() = ttest;
+        }
+        else {
+          // entering: create the range
+          tranges.push_back(KinKal::TimeRange(ttest,ttest));
+        }
       }
     }
     // finish the last range
