@@ -15,7 +15,7 @@ namespace TrackToy {
       double cellArea() const { return cellArea_; }
       unsigned nCells() const { return ncells_; }
       // compute # of cells for a given trajectory
-      template<class KTRAJ> double nCells(KTRAJ const& ktraj, TimeRanges const& tranges)  const;
+      double nCells(double speed, TimeRanges const& tranges) const;
     private:
       HollowCylinder cyl_; // geometric form of the tracker
       CellOrientation orientation_; // orientation of the cells
@@ -26,17 +26,6 @@ namespace TrackToy {
       double gain_; // gain factor (C/MeV)
   };
 
-  template<class KTRAJ> double Tracker::nCells(KTRAJ const& ktraj, TimeRanges const& tranges) const {
-    double retval(0.0);
-    if(tranges.size()>0){
-      // assume constant speed
-      double speed = ktraj.speed(tranges.front().begin());
-      double path(0.0);
-      for(auto const& range : tranges) path += range.range()*speed;
-      retval = cellDensity_*path*cellArea_;
-    }
-    return retval;
-  }
 }
 #endif
 

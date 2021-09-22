@@ -8,6 +8,7 @@
 #include "TrackToy/General/FileFinder.hh"
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include "TrackToy/Detector/Tracker.hh"
+#include "TrackToy/Detector/EStar.hh"
 #include "TrackToy/Spectra/CeMinusSpectrum.hh"
 #include "TFile.h"
 #include "TSystem.h"
@@ -49,8 +50,10 @@ int main(int argc, char **argv) {
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
   int ntrks(-1);
   string bfile("Data/DSMapDump.dat"), mfile, targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
+  string efile_al("Data/EStar_Al.dat"); // should come from target FIXME
+  string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
+  double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
   double tstep(0.01), tol(1e-3);
-  double endpoint(105.0), lifetime(864.0); // these should be specified by material FIXME
   double emass(0.511); //electron
   size_t npts(5000);
   bool draw(false);
@@ -117,9 +120,11 @@ int main(int argc, char **argv) {
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;
   // setup target
   HollowCylinder target(targetfile);
+  EStar targetEStar(efile_al);
   cout << "target between " << target.zmin() << " and " << target.zmax() << " rmin " << target.rmin() << " rmax " << target.rmax() << endl;
   // setup tracker
   Tracker tracker(trackerfile);
+  EStar trackerEStar(efile_my);
   auto const& trackercyl = tracker.cylinder();
   cout << "tracker between " << trackercyl.zmin() << " and " << trackercyl.zmax() << " rmin " << trackercyl.rmin() << " rmax " << trackercyl.rmax() << endl;
   // randoms
@@ -133,6 +138,9 @@ int main(int argc, char **argv) {
   TH1F* tarpath = new TH1F("tarpath","Target path;Path (mm)",100,10,1000.0);
   TH1F* trkpath = new TH1F("trkpath","Tracker path;Path (mm)",100,10,5000.0);
   TH1F* trktime = new TH1F("trktime","Track time;Time (ns)",100,0,2000.0);
+  TH1F* trkde = new TH1F("trkde","Tracker <dE>;<dE> (MeV)",100,0.001,2.0);
+  TH1F* tarde = new TH1F("tarde","Target <dE>;<dE> (MeV)",100,0.001,5.0);
+  TH1F* trknc = new TH1F("trknc","Tracker N Cells;N Cells",100,0.001,100.0);
 
   std::vector<TPolyLine3D*> plhel;
   // loop over stops
@@ -190,6 +198,14 @@ int main(int argc, char **argv) {
     double targetpath(0.0), trackerpath(0.0);
     for (auto const& range : targetranges) targetpath += range.range()*speed;
     for (auto const& range : trackerranges) trackerpath += range.range()*speed;
+    double ke = sqrt(energy*(energy + emass));
+    double detarget = targetEStar.dEIonization(ke)*target.density()*targetpath/10.0; // why ionization and not total??? FIXME
+    double detracker = trackerEStar.dEIonization(ke)*trackercyl.density()*trackerpath/10.0;
+    double ntrkcell = tracker.nCells(speed, trackerranges);
+//    cout << "detarget " << detarget << " detracker " << detracker << endl;
+    tarde->Fill(detarget);
+    trkde->Fill(detracker);
+    trknc->Fill(ntrkcell);
 
 //    cout << "Found " << targetranges.size() << " target ranges, path " << targetpath
 //    << " and " << trackerranges.size() << " tracker ranges, path " << trackerpath << endl;
@@ -214,10 +230,12 @@ int main(int argc, char **argv) {
   TCanvas* ctrkcan = new TCanvas("CeTrack");
   ctrkcan->Divide(2,2);
   ctrkcan->cd(1);
-  tarpath->Draw();
+  tarde->Draw();
   ctrkcan->cd(2);
-  trkpath->Draw();
+  trkde->Draw();
   ctrkcan->cd(3);
+  trknc->Draw();
+  ctrkcan->cd(4);
   trktime->Draw();
   ctrkcan->Write();
 

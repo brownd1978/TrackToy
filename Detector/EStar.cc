@@ -10,7 +10,7 @@
 #include <cmath>
 
 namespace TrackToy {
-  EStar::EStar(const char* tablefile) {
+  EStar::EStar(std::string const& tablefile) {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(tablefile);
     // read the file

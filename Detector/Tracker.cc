@@ -31,6 +31,15 @@ namespace TrackToy {
     cyl_ = HollowCylinder(rmin,rmax,zpos,zhalf,density);
     cellDensity_ = (float)ncells_/cyl_.volume();
   }
+  double Tracker::nCells(double speed, TimeRanges const& tranges) const {
+    double retval(0.0);
+    if(tranges.size()>0){
+      double path(0.0);
+      for(auto const& range : tranges) path += range.range()*speed;
+      retval = cellDensity_*path*cellArea_;
+    }
+    return retval;
+  }
 }
 
 
