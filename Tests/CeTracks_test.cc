@@ -199,7 +199,7 @@ int main(int argc, char **argv) {
     for (auto const& range : targetranges) targetpath += range.range()*speed;
     for (auto const& range : trackerranges) trackerpath += range.range()*speed;
     double ke = sqrt(energy*(energy + emass));
-    double detarget = targetEStar.dEIonization(ke)*target.density()*targetpath/10.0; // why ionization and not total??? FIXME
+    double detarget = targetEStar.dEIonization(ke)*target.density()*targetpath/10.0; // only ionization energy loss is relevant for thin material
     double detracker = trackerEStar.dEIonization(ke)*trackercyl.density()*trackerpath/10.0;
     double ntrkcell = tracker.nCells(speed, trackerranges);
 //    cout << "detarget " << detarget << " detracker " << detracker << endl;
