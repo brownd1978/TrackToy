@@ -1,7 +1,9 @@
 //
-//  Test program for DIO Spectrum
+//  Test program for Spectrum
 //
 #include "TrackToy/Spectra/DIOSpectrum.hh"
+#include "TrackToy/Spectra/CeMinusSpectrum.hh"
+#include "TrackToy/Spectra/CeEndpoint.hh"
 #include "TFile.h"
 #include "TH1D.h"
 #include "TCanvas.h"
@@ -19,20 +21,24 @@ using namespace TrackToy;
 using namespace std;
 
 void print_usage() {
-  printf("Usage: DIOSpectrum --file s --emin f --emax f --nsample i --ntest i\n");
+  printf("Usage: DIOSpectrum --file s --endpoint f --emin f --emax f --nsample i --ntest i --spectrum i\n");
 }
 
 int main(int argc, char **argv) {
   double emin(-1.0), emax(1.0e10);
   size_t nsample(100000), ntest(100000);
+  double endpoint(105.0); // this should be specified by material FIXME
   string file("Data/DIOAl_fine.dat");
+  int stype;
 
   static struct option long_options[] = {
     {"file",     required_argument, 0, 'f' },
+    {"endpoint",     required_argument, 0, 'e' },
     {"emin",     required_argument, 0, 'm' },
     {"emax",     required_argument, 0, 'M'  },
     {"nsample",     required_argument, 0, 'N'  },
     {"ntest",     required_argument, 0, 'n'  },
+    {"spectrum",     required_argument, 0, 's'  },
     {NULL, 0,0,0}
   };
   int opt;
@@ -42,6 +48,8 @@ int main(int argc, char **argv) {
     switch (opt) {
       case 'f' : file = string(optarg);
                  break;
+      case 'e' : endpoint = atof(optarg);
+                 break;
       case 'm' : emin = atof(optarg);
                  break;
       case 'M' : emax = atof(optarg);
@@ -50,48 +58,69 @@ int main(int argc, char **argv) {
                  break;
       case 'n' : ntest = atoi(optarg);
                  break;
+      case 's' : stype = atoi(optarg);
+                 break;
       default: print_usage();
                exit(EXIT_FAILURE);
     }
   }
+  // setup histogramTFile diofile("DIOSpectrum.root","RECREATE");
+  TFile diofile("Spectrum.root","RECREATE");
+  CeMinusSpectrumParams ceparams(endpoint);
+  Spectrum* spect(0);
+  string title;
+  switch (stype) {
+    case Spectrum::DIO : default:
+      spect = new DIOSpectrum(file.c_str(),emin,emax);
+      title = string("DIO Spectrum;Energy (MeV);Rate (1/MeV)");
+      cout << "Testing DIO spectrum" << endl;
+      break;
+    case Spectrum::CeMinus :
+      spect = new CeMinusSpectrum(ceparams);
+      title = string("CeMinus Spectrum;Energy (MeV);Rate (1/MeV)");
+      cout << "Testing CeMinus spectrum" << endl;
+      break;
+    case Spectrum::CeEndpoint :
+      spect = new CeEndpoint(endpoint);
+      title = string("CeEndpoint Spectrum;Energy (MeV);Rate (1/MeV)");
+      cout << "Testing CeEndpoint spectrum" << endl;
+      break;
+  }
 
-  // setup histograms
-  TFile diofile("DIOSpectrum.root","RECREATE");
-  // create the spectrum object; this is for aluminum only!
-  DIOSpectrum diospect(file.c_str(),emin,emax);
-  double inte = diospect.integral(diospect.eMin(),diospect.eMax(),100000);
-  cout << "DIO Spectrum integral over range " << diospect.eMin() << " to " << diospect.eMax() << " = " << inte << endl;
+  double inte = spect->integral(spect->eMin(),spect->eMax(),100000);
+  cout << "Spectrum integral over range " << spect->eMin() << " to " << spect->eMax() << " = " << inte << endl;
   // sample and draw the spectrum
   std::vector<double> xpts, ypts;
   xpts.reserve(nsample);
   ypts.reserve(nsample);
-  double estep = (diospect.eMax()-diospect.eMin())/(nsample-1);
+  double estep = (spect->eMax()-spect->eMin())/(nsample-1);
   double rmax(0.0);
   for(size_t isample=0;isample<nsample;++isample){
-    double energy = diospect.eMin()+ isample*estep;
+    double energy = spect->eMin()+ isample*estep;
     xpts.push_back(energy);
-    double rate = diospect.rate(energy);
+    double rate = spect->rate(energy);
     ypts.push_back(rate);
     rmax = std::max(rate,rmax);
     //    cout << " energy " << energy << " rate " << rate << endl;
   }
   TGraph *spectg = new TGraph(nsample,xpts.data(),ypts.data());
-  spectg->SetTitle("DIO Spectrum;Energy (MeV);Rate (1/MeV)");
+  spectg->SetTitle(title.c_str());
   spectg->SetLineColor(kRed);
   // fill sample histogram
-  TH1D* specthist = new TH1D("DIOSpectrum","DIO Spectrum;Energy (MeV);Rate (1/MeV)",1000,diospect.eMin(),diospect.eMax());
+
+  TH1D* specthist = new TH1D("Spectrum",title.c_str(),1000,spect->eMin(),spect->eMax());
   specthist->SetStats(0);
   TRandom3 tr_; // random number generator
-  double weight(specthist->GetNbinsX()/( diospect.normalization()*ntest*(diospect.eMax()-diospect.eMin())));
+  double weight(specthist->GetNbinsX()/( spect->normalization()*ntest*(spect->eMax()-spect->eMin())));
   for(int itest=0; itest<ntest; ++itest){
     double prob = tr_.Uniform();
-    double energy = diospect.sample(prob);
+    double energy = spect->sample(prob);
     specthist->Fill(energy,weight);
   }
   // plot the graph
-  TCanvas* diocan = new TCanvas("diocan","DIOSpectrum",1000,1000);
-  diocan->Divide(1,1);
-  diocan->cd(1);
+  TCanvas* spectcan = new TCanvas("spectcan","Spectrum",1000,1000);
+  spectcan->Divide(1,1);
+  spectcan->cd(1);
   specthist->Draw();
   spectg->Draw("same");
   TLegend* leg = new TLegend(0.5,0.7,0.9,0.9);
@@ -99,7 +128,7 @@ int main(int argc, char **argv) {
   leg->AddEntry(specthist,"Sampling","l");
   leg->Draw();
   // save the canvas
-  diocan->Write();
+  spectcan->Write();
   diofile.Write();
   diofile.Close();
 

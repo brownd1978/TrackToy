@@ -15,10 +15,10 @@ There are 2 build configurations: *Debug* or *Release*.  To build
 git clone https://github.com/KFTrack/TrackToy.git
 ```
 
-2. Set up a new build directory; lets say `build_profile` for a profile build (or `build_debug` for a debug build)
+2. Set up a new build directory; lets say `tracktoy_profile` for a profile build (or `tracktoy_debug` for a debug build)
 ```bash
-mkdir build_profile
-cd build_profile
+mkdir tracktoy_profile
+cd tracktoy_profile
 
 ```
 
@@ -46,8 +46,8 @@ Test programs will be built in the `bin/` directory. Run them with `--help` in t
 Make sure `clang-tidy` is installed, and add an extra argument to the `cmake` command.
 
 ```bash
-mkdir build_clangtidy
-cd build_clangtidy
+mkdir tracktoy_clangtidy
+cd tracktoy_clangtidy
 cmake ../TrackToy -DCMAKE_BUILD_TYPE=[Release/Debug] -DENABLE_CLANG_TIDY=ON
 make -j <jobs to run>
 ```

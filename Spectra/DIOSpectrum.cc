@@ -13,7 +13,7 @@
 
 
 namespace TrackToy {
-  DIOSpectrum::DIOSpectrum(const char* spectrumfile, double emin, double emax) : norm_(1.0) {
+  DIOSpectrum::DIOSpectrum(const char* spectrumfile, double emin, double emax) : Spectrum(Spectrum::DIO, emin,emax)  {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(spectrumfile);
     // read the file

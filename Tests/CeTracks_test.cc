@@ -149,7 +149,7 @@ int main(int argc, char **argv) {
   while (reader.Next() && (ntrks < 0 || itrk < ntrks)) {
     ++itrk;
     // generate a random CeEndpoint momentum FIXME!
-    double energy = cespect.params().eMax_;
+    double energy = cespect.params().EEnd_;
     // generate a random muon decay time FIXME
     double tdecay = tr_.Exp(lifetime);
     // generate random phi and cos(theta)

@@ -2,8 +2,7 @@
 # ls -1 *_test.cc
 
 set( TEST_SOURCE_FILES
-  CeMinusSpectrum_test.cc
-  DIOSpectrum_test.cc
+  Spectrum_test.cc
   MuonRange_test.cc
   Particle_test.cc
   BField_test.cc
