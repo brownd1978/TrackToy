@@ -38,7 +38,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED on)
 # make sure CMake is able to find ROOT
 list(APPEND CMAKE_PREFIX_PATH $ENV{ROOTSYS})
 
-# check for KinKal
 list(APPEND CMAKE_MODULE_PATH ${CMAKE_SOURCE_DIR})
 set(CMAKE_FIND_LIBRARY_PREFIXES lib)
 set(CMAKE_FIND_LIBRARY_SUFFIXES .dylib)
@@ -46,8 +45,8 @@ MESSAGE("CMAKE_FIND_LIBRARY_PREFIXES =${CMAKE_FIND_LIBRARY_PREFIXES}")
 MESSAGE("CMAKE_FIND_LIBRARY_SUFFIXES =${CMAKE_FIND_LIBRARY_SUFFIXES}")
 MESSAGE("CMAKE_SOURCE_DIR =${CMAKE_SOURCE_DIR}")
 MESSAGE("CMAKE_MODULE_PATH =${CMAKE_MODULE_PATH}")
-FIND_PACKAGE(KINKAL REQUIRED)
-
+# check for KinKal
+find_package(KINKAL REQUIRED)
 IF(NOT KINKAL_FOUND)
     MESSAGE(FATAL_ERROR "Could not find KinKal. You need to source (KinKal build directory)/setup.sh")
 ENDIF()
@@ -91,10 +90,10 @@ endif()
 
 
 # Set project name and version
-project (KinKal
+project (TrackToy
     LANGUAGES CXX
     VERSION ${_build_ver_maj}.${_build_ver_min}.${_build_ver_patch}
-    DESCRIPTION "Kinematic Kalman filter track fit code package"
+    DESCRIPTION "Toy MC for studying tracking detector performance"
 )
 
 message( STATUS "Project Version: ${CMAKE_PROJECT_VERSION}")
@@ -192,7 +191,7 @@ install(TARGETS Spectra Detector General Tests
 # install headers
 # Globbing here is fine because it does not influence build behaviour
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/"
-        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/KinKal
+        DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/TrackToy
         FILES_MATCHING PATTERN "*.hh"
         PATTERN ".git*" EXCLUDE
 )

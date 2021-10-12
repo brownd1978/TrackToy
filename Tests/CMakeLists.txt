@@ -21,6 +21,8 @@ add_library(Tests SHARED TestsDict)
 
 target_include_directories(Tests PRIVATE ${PROJECT_SOURCE_DIR}/..)
 target_include_directories(Tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# add KinKal; this may be redundant, but...
+target_include_directories(Tests PRIVATE ${KINKAL_INCLUDE_DIR})
 
 # link ROOT libraries
 target_link_libraries(Tests ${ROOT_LIBRARIES} ${KINKAL_LIBRARIES})
