@@ -32,19 +32,19 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: ParticleTest --particlefile s --bfieldfile s --muonrangefile s --targetfile s --tol f  --tstep f --ntrks i\n");
+  printf("Usage: ParticleTest --mubeam s --bfieldfile s --muonrangefile s --targetfile s --tol f  --tstep f --ntrks i\n");
 }
 
 int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
   int ntrks(-1);
-  string pfile, bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile("Data/Mu2eTarget.dat");
+  string mbfile("Data/Mu2e_MuBeam.root"), bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile("Data/Mu2eTarget.dat");
   double tstep(0.01), tol(1e-3);
   double minmass(100.0); // select muons
 
   static struct option long_options[] = {
-    {"particlefile",     required_argument, 0, 'f' },
+    {"mubeam",     required_argument, 0, 'f' },
     {"bfieldfile",     required_argument, 0, 'F' },
     {"muonrangefile",     required_argument, 0, 'm' },
     {"targetfile",     required_argument, 0, 'T' },
@@ -58,7 +58,7 @@ int main(int argc, char **argv) {
   while ((opt = getopt_long_only(argc, argv,"",
           long_options, &long_index )) != -1) {
     switch (opt) {
-      case 'f' : pfile = string(optarg);
+      case 'f' : mbfile = string(optarg);
                  break;
       case 'F' : bfile = string(optarg);
                  break;
@@ -78,21 +78,23 @@ int main(int argc, char **argv) {
   }
   // not sure why this is necessary...
   gSystem->Load("lib/libTests.dylib");
-  if(pfile.size()==0){
-    cout << "No input pfile specified: terminating" << endl;
+  if(mbfile.size()==0){
+    cout << "No input muon beam file specified: terminating" << endl;
     return 1;
   }
-  // open the input particle pfile
-  TFile* ppfile = TFile::Open(pfile.c_str(),"READ");
-  // find the TTree in the pfile
-  TDirectory* td = (TDirectory*)ppfile->Get("StepPointMCDumper");
+  // open the input muonbeam file of muon particles artificially stopped at the entrance to the DS; this comes from the running the Mu2e software StepPointMCDumper_module on the MuBeam(Cat) dataset produced by the beam production
+  FileFinder filefinder;
+  std::string fullfile = filefinder.fullFile(mbfile);
+  cout << " mbfile " << fullfile << endl;
+  TFile* mubeamfile = TFile::Open(fullfile.c_str(),"READ");
+  // find the TTree in the mbfile
+  TDirectory* td = (TDirectory*)mubeamfile->Get("StepPointMCDumper");
   TTreeReader reader("nt",td);
   TTreeReaderValue<ParticleState> pstate(reader, "particle");
   TTree* ptree = (TTree*)td->Get("nt");
-  cout << "Particle TTree from file " << pfile << " has " << ptree->GetEntries() << " Entries" << endl;
+  cout << "MuonBeam particle TTree from file " << mbfile << " has " << ptree->GetEntries() << " Entries" << endl;
   // setup BField
-  FileFinder filefinder;
-  std::string fullfile = filefinder.fullFile(bfile);
+  fullfile = filefinder.fullFile(bfile);
   AxialBFieldMap axfield(fullfile);
   cout << "axial field from file " << fullfile << " is between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;
@@ -206,7 +208,7 @@ int main(int argc, char **argv) {
 
   muscan->Write();
   mustopfile.Write();
-  ppfile->Close();
+  mubeamfile->Close();
   return 0;
 }
 

@@ -1,6 +1,7 @@
 //
 //  Implementation of IPA
 //
+#include "KinKal/Detector/MaterialXing.hh"
 #include "TrackToy/Detector/IPA.hh"
 #include "TrackToy/General/FileFinder.hh"
 #include <iostream>
@@ -8,8 +9,9 @@
 #include <sstream>
 #include <regex>
 #include <stdexcept>
+#include <string>
 namespace TrackToy {
-  IPA::IPA(std::string const& tgtfile) : type_(unknown) {
+  IPA::IPA(MatEnv::MatDBInfo const& matdbinfo,std::string const& tgtfile) : type_(unknown) {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(tgtfile);
     std::string line;
@@ -24,14 +26,21 @@ namespace TrackToy {
         // first get type and material
         if(type_ == unknown){
           int type;
-          string material;
+          std::string material;
           iss >> type >> material;
           type_ = (IPAType)type;
+          // lookup material
+          mat_ = matdbinfo.findDetMaterial(material);
+          if(mat_ == 0){
+            std::string errmsg = std::string("Invalid Material ")+material;
+            throw std::invalid_argument(errmsg);
+          }
           // then geometry
         } else if (type_ == cylinder) {
+          std::cout << "line=" << line << std::endl;
           double radius, rhalf, zpos, zhalf;
           iss >> radius >> rhalf >> zpos >> zhalf;
-          if(radius < 0.0 || rhalf < 0.0 || zhalf < 0.0)throw std::invalidargument("Invalid CylindricalShell parameters");\
+          if(radius < 0.0 || rhalf < 0.0 || zhalf < 0.0)throw std::invalid_argument("Invalid CylindricalShell parameters");\
             cyl_ = CylindricalShell(radius,rhalf,zpos,zhalf);
         }
       }

@@ -1,3 +1,6 @@
+//
+//  Macro to plot Mu2e muon beam info.  These are muons artifically stopped at the entrance to the Detector Solenoid
+//
 #include "TH1F.h"
 #include "TH2F.h"
 #include "TCanvas.h"

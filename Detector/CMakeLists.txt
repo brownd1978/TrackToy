@@ -1,6 +1,5 @@
 add_library(Detector SHARED
    HollowCylinder.cc
-   CylindricalShell.cc
    Tracker.cc
    IPA.cc
    EStar.cc

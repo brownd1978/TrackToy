@@ -11,7 +11,7 @@ namespace TrackToy {
   using TimeRanges = std::vector<KinKal::TimeRange>;
   class CylindricalShell {
     public:
-      CylindricalShell(): radius_(-1.0), rhalf_(-1.0), zpos_(0.0), zhalf_(-1.0)
+      CylindricalShell(): radius_(-1.0), rhalf_(-1.0), zpos_(0.0), zhalf_(-1.0) {}
       CylindricalShell(double radius, double rhalf, double zpos, double zhalf) : radius_(radius), rhalf_(rhalf), zpos_(zpos), zhalf_(zhalf) {}
       double radius() const { return radius_;}
       double rhalf() const { return rhalf_;}

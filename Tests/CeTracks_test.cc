@@ -8,7 +8,7 @@
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "TrackToy/General/FileFinder.hh"
 #include "TrackToy/Detector/HollowCylinder.hh"
-#include "TrackToy/Detector/CylindricalShell.hh"
+#include "TrackToy/Detector/IPA.hh"
 #include "TrackToy/Detector/Tracker.hh"
 #include "TrackToy/Detector/EStar.hh"
 #include "TrackToy/Spectra/CeMinusSpectrum.hh"
@@ -51,7 +51,7 @@ int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
   int ntrks(-1);
-  string bfile("Data/DSMapDump.dat"), mfile, targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
+  string bfile("Data/DSMapDump.dat"), mfile("MuStops.root"), targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
   string ipafile("Data/Mu2e_IPA.dat");
   string efile_al("Data/EStar_Al.dat"); // should come from target FIXME
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
@@ -111,9 +111,6 @@ int main(int argc, char **argv) {
     cout << "No input muonstops file specified: terminating" << endl;
     return 1;
   }
-  // build the materials database
-  MatEnv::MatDBInfo matdb_;
-
   // open the input muonstops file
   TFile* mustopsfile = TFile::Open(mfile.c_str(),"READ");
   // find the TTree in the pfile
@@ -121,6 +118,10 @@ int main(int argc, char **argv) {
   TTreeReaderValue<VEC4> pos(reader, "Pos");
   TTree* mtree = (TTree*)mustopsfile->Get("MuStops");
   cout << "MuStops TTree from file " << mfile << " has " << mtree->GetEntries() << " Entries" << endl;
+  // build the materials database
+  MatEnv::SimpleFileFinder ttfinder(std::string("TRACKTOY_SOURCE_DIR"),std::string("/Data/"));
+  cout << "Using Materials file " << ttfinder.matMtrDictionaryFileName() << endl;
+  MatEnv::MatDBInfo matdb_(ttfinder);
   // setup BField
   FileFinder filefinder;
   std::string fullfile = filefinder.fullFile(bfile);
@@ -132,8 +133,7 @@ int main(int argc, char **argv) {
   EStar targetEStar(efile_al);
   cout << "target between " << target.zmin() << " and " << target.zmax() << " rmin " << target.rmin() << " rmax " << target.rmax() << endl;
   // setup ipa
-  IPA ipa(ipafile);
-
+  IPA ipa(matdb_,ipafile);
   // setup tracker
   Tracker tracker(trackerfile);
   EStar trackerEStar(efile_my);
@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
     VEC3 cemom(energy*sint*cos(phi),energy*sint*sin(phi),energy*cost);
     ParticleState cestate(pos4.Vect(),cemom,tdecay+pos4.T(),emass,-1);
 //    cout << "Initial Ce position" << cestate.position3() << " mom " << cestate.momentum3() << " time " << cestate.time() << endl;
-    TimeRange range(cestate.time(),cestate.time()+1000.0); // FIXME
+    TimeRange range(cestate.time(),cestate.time()+1000.0); // replace hard-coded limit with a physical estimate FIXME
     auto bstart = axfield.fieldVect(cestate.position3());
     //      cout << "bstart " << bstart << endl;
     KTRAJ lhelix(cestate,bstart,range);
@@ -201,10 +201,11 @@ int main(int argc, char **argv) {
 //    cout << "Particle with " << ptraj.pieces().size() << " pieces propagating from " << ptraj.position3(ptraj.range().begin())
 //      << " to " << ptraj.position3(ptraj.range().end()) << endl;
     // find intersections with tracker and target
-    TimeRanges targetranges, trackerranges;
+    TimeRanges targetranges, iparanges, trackerranges;
     double speed = ptraj.velocity(ptraj.range().begin()).R();// assume constant speed
     if(ptraj.position3(ptraj.range().end()).Z() > trackercyl.zmax()){
       target.intersect(ptraj,targetranges,tstep);
+      ipa.cyl().intersect(ptraj,iparanges,tstep);
       trackercyl.intersect(ptraj,trackerranges,tstep);
     }
     double targetpath(0.0), trackerpath(0.0);
@@ -212,6 +213,7 @@ int main(int argc, char **argv) {
     for (auto const& range : trackerranges) trackerpath += range.range()*speed;
     double ke = sqrt(energy*(energy + emass));
     double detarget = targetEStar.dEIonization(ke)*target.density()*targetpath/10.0; // only ionization energy loss is relevant for thin material
+    // compute IPA energy loss including Moyal fluctuation: TODO
     double detracker = trackerEStar.dEIonization(ke)*trackercyl.density()*trackerpath/10.0;
     double ntrkcell = tracker.nCells(speed, trackerranges);
 //    cout << "detarget " << detarget << " detracker " << detracker << endl;
