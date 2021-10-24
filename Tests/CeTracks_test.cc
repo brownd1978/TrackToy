@@ -5,8 +5,10 @@
 #include "KinKal/General/ParticleState.hh"
 #include "KinKal/Trajectory/LoopHelix.hh"
 #include "KinKal/Trajectory/ParticleTrajectory.hh"
+#include "KinKal/MatEnv/MatDBInfo.hh"
 #include "TrackToy/General/FileFinder.hh"
 #include "TrackToy/Detector/HollowCylinder.hh"
+#include "TrackToy/Detector/CylindricalShell.hh"
 #include "TrackToy/Detector/Tracker.hh"
 #include "TrackToy/Detector/EStar.hh"
 #include "TrackToy/Spectra/CeMinusSpectrum.hh"
@@ -42,7 +44,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --endpoint f --lifetime f --tol f  --tstep f --npts i --ntrks i --draw i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --tstep f --npts i --ntrks i --draw i\n");
 }
 
 int main(int argc, char **argv) {
@@ -50,6 +52,7 @@ int main(int argc, char **argv) {
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
   int ntrks(-1);
   string bfile("Data/DSMapDump.dat"), mfile, targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
+  string ipafile("Data/Mu2e_IPA.dat");
   string efile_al("Data/EStar_Al.dat"); // should come from target FIXME
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
@@ -63,6 +66,7 @@ int main(int argc, char **argv) {
     {"bfieldfile",     required_argument, 0, 'F' },
     {"targetfile",     required_argument, 0, 't' },
     {"trackerfile",     required_argument, 0, 'T' },
+    {"ipafile",     required_argument, 0, 'i' },
     {"endpoint",     required_argument, 0, 'e' },
     {"tol",     required_argument, 0, 'x' },
     {"tstep",     required_argument, 0, 's'  },
@@ -82,6 +86,8 @@ int main(int argc, char **argv) {
       case 't' : targetfile = string(optarg);
                  break;
       case 'T' : trackerfile = string(optarg);
+                 break;
+      case 'i' : ipafile = string(optarg);
                  break;
       case 'e' : endpoint = atof(optarg);
                  break;
@@ -105,6 +111,9 @@ int main(int argc, char **argv) {
     cout << "No input muonstops file specified: terminating" << endl;
     return 1;
   }
+  // build the materials database
+  MatEnv::MatDBInfo matdb_;
+
   // open the input muonstops file
   TFile* mustopsfile = TFile::Open(mfile.c_str(),"READ");
   // find the TTree in the pfile
@@ -122,6 +131,9 @@ int main(int argc, char **argv) {
   HollowCylinder target(targetfile);
   EStar targetEStar(efile_al);
   cout << "target between " << target.zmin() << " and " << target.zmax() << " rmin " << target.rmin() << " rmax " << target.rmax() << endl;
+  // setup ipa
+  IPA ipa(ipafile);
+
   // setup tracker
   Tracker tracker(trackerfile);
   EStar trackerEStar(efile_my);
