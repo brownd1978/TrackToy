@@ -42,10 +42,21 @@ namespace TrackToy {
           iss >> radius >> rhalf >> zpos >> zhalf;
           if(radius < 0.0 || rhalf < 0.0 || zhalf < 0.0)throw std::invalid_argument("Invalid CylindricalShell parameters");\
             cyl_ = CylindricalShell(radius,rhalf,zpos,zhalf);
+        } else if (type_ == propeller) {
+          throw std::invalid_argument("Propeller IPA not currently supported");\
         }
       }
     }
-    std::cout << "Read IPA parameters from file " << fullfile << std::endl;
+    switch (type_ ) {
+      default:
+      case IPA::cylinder:
+        std::cout << "Cylindrical IPA with radius " << cyl_.radius() << " thickness " << 2*cyl_.rhalf() << " Zmid " << cyl_.zpos() << " Length " << 2*cyl_.zhalf();
+        break;
+      case IPA::propeller:
+        std::cout << "Propeller IPA";
+        break;
+    }
+    std::cout << " of material " << mat_->name() << " constructed from file " << fullfile << std::endl;
   }
 }
 

@@ -6,6 +6,7 @@
 #include "KinKal/Trajectory/LoopHelix.hh"
 #include "KinKal/Trajectory/ParticleTrajectory.hh"
 #include "KinKal/MatEnv/MatDBInfo.hh"
+#include "KinKal/MatEnv/DetMaterial.hh"
 #include "TrackToy/General/FileFinder.hh"
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include "TrackToy/Detector/IPA.hh"
@@ -121,7 +122,7 @@ int main(int argc, char **argv) {
   // build the materials database
   MatEnv::SimpleFileFinder ttfinder(std::string("TRACKTOY_SOURCE_DIR"),std::string("/Data/"));
   cout << "Using Materials file " << ttfinder.matMtrDictionaryFileName() << endl;
-  MatEnv::MatDBInfo matdb_(ttfinder);
+  MatEnv::MatDBInfo matdb_(ttfinder,MatEnv::DetMaterial::mpv); // use most probable value definition of eloss
   // setup BField
   FileFinder filefinder;
   std::string fullfile = filefinder.fullFile(bfile);
@@ -153,6 +154,9 @@ int main(int argc, char **argv) {
   TH1F* trkde = new TH1F("trkde","Tracker <dE>;<dE> (MeV)",100,0.001,2.0);
   TH1F* tarde = new TH1F("tarde","Target <dE>;<dE> (MeV)",100,0.001,5.0);
   TH1F* trknc = new TH1F("trknc","Tracker N Cells;N Cells",100,0.001,100.0);
+  TH1F* ipan = new TH1F("ipan","N IPA Intersections",50,-0.5,49.5);
+  TH1F* ipade = new TH1F("ipde","IPA Intersection dE",100,-0.3,0.0);
+  TH1F* ipades = new TH1F("ipdes","IPA Intersections Sum dE",100,-0.5,0.0);
 
   std::vector<TPolyLine3D*> plhel;
   // loop over stops
@@ -214,6 +218,16 @@ int main(int argc, char **argv) {
     double ke = sqrt(energy*(energy + emass));
     double detarget = targetEStar.dEIonization(ke)*target.density()*targetpath/10.0; // only ionization energy loss is relevant for thin material
     // compute IPA energy loss including Moyal fluctuation: TODO
+    ipan->Fill(iparanges.size());
+    double ipaeloss(0.0);
+    for(auto const& trange : iparanges) {
+      auto eloss = ipa.energyLoss(ptraj,trange);
+      double de = eloss.mean();
+      ipade->Fill(de);
+      ipaeloss += de;
+    }
+    ipades->Fill(ipaeloss);
+
     double detracker = trackerEStar.dEIonization(ke)*trackercyl.density()*trackerpath/10.0;
     double ntrkcell = tracker.nCells(speed, trackerranges);
 //    cout << "detarget " << detarget << " detracker " << detracker << endl;
