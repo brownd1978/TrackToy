@@ -35,22 +35,21 @@ namespace TrackToy {
   template<class KTRAJ> void HollowCylinder::intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const {
     tranges.clear();
     // search for an intersection
-    double tstart = ktraj.range().begin();
-    auto pos = ktraj.position3(tstart);
+    double ttest = ktraj.range().begin();
+    auto pos = ktraj.position3(ttest);
     if(pos.Z() < zmin() || pos.Z() > zmax()){
 // move to the edge
-      double tmin = std::max(tstart,ktraj.zTime(zmin()));
-      double tmax = std::max(tstart,ktraj.zTime(zmax()));
-      tstart = std::min(tmin,tmax);
-      pos = ktraj.position3(tstart);
+      double tmin = std::max(ttest,ktraj.zTime(zmin()));
+      double tmax = std::max(ttest,ktraj.zTime(zmax()));
+      ttest = std::min(tmin,tmax);
+      pos = ktraj.position3(ttest);
     }
     bool inside = isInside(pos);
     bool oldinside;
     bool crosses(false);
     //      cout << "particle enters at " << pos << endl;
-    double ttest = tstart;
     // if we start inside, setup the first range
-    if(inside) tranges.push_back(KinKal::TimeRange(tstart,tstart));
+    if(inside) tranges.push_back(KinKal::TimeRange(ttest,ttest));
     while(pos.z() < zmax() && ttest < ktraj.range().end()){
       ttest += tstep;
       pos = ktraj.position3(ttest);

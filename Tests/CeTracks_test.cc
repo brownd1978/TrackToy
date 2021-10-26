@@ -5,6 +5,7 @@
 #include "KinKal/General/ParticleState.hh"
 #include "KinKal/Trajectory/LoopHelix.hh"
 #include "KinKal/Trajectory/ParticleTrajectory.hh"
+#include "KinKal/MatEnv/SimpleFileFinder.hh"
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/MatEnv/DetMaterial.hh"
 #include "TrackToy/General/FileFinder.hh"
@@ -123,12 +124,12 @@ int main(int argc, char **argv) {
   }
   // not sure why this is necessary...
   gSystem->Load("lib/libTests.dylib");
-  if(mfile.size()==0){
-    cout << "No input muonstops file specified: terminating" << endl;
-    return 1;
-  }
   // open the input muonstops file
   TFile* mustopsfile = TFile::Open(mfile.c_str(),"READ");
+  if(!mustopsfile){
+    cout << "MuStop file " << mfile << " not found: terminating" << endl;
+    return 1;
+  }
   // find the TTree in the pfile
   TTreeReader reader("MuStops",mustopsfile);
   TTreeReaderValue<VEC4> mustoppos(reader, "Pos");
@@ -232,12 +233,13 @@ int main(int argc, char **argv) {
     // find intersections with tracker and target
     TimeRanges iparanges, trackerranges;
 //    if(pktraj.position3(pktraj.range().end()).Z() > trackercyl.zmax()){
-//      ipa.cyl().intersect(pktraj,iparanges,tstep);
-      //trackercyl.intersect(pktraj,trackerranges,tstep);
+      ipa.cyl().intersect(pktraj,iparanges,tstep);
+      trackercyl.intersect(pktraj,trackerranges,tstep);
 //    }
     // check that the particle reached the tracker
     double speed = pktraj.velocity(pktraj.range().begin()).R();// assume constant speed
     ntrackercells_ = tracker.nCells(speed, trackerranges);
+    cout << "ntrackercells " << ntrackercells_ << endl;
     if(ntrackercells_ > minncells){
       ntrackerarcs_ = trackerranges.size();
       double trackerpath(0.0);

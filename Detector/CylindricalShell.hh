@@ -29,12 +29,19 @@ namespace TrackToy {
   template<class KTRAJ> void CylindricalShell::intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const {
     // define boundary times, assuming constant velocity
     tranges.clear();
-    // search for an intersection; start with the entrance
-    double ttest = ktraj.zTime(zmin());
+    // search for an intersection
+    double ttest = ktraj.range().begin();
     auto pos = ktraj.position3(ttest);
+    if(pos.Z() < zmin() || pos.Z() > zmax()){
+// move to the edge
+      double tmin = std::max(ttest,ktraj.zTime(zmin()));
+      double tmax = std::max(ttest,ktraj.zTime(zmax()));
+      ttest = std::min(tmin,tmax);
+      pos = ktraj.position3(ttest);
+    }
     double dr = pos.Rho() - radius();
     double olddr = dr;
-    while(pos.Z() < zmax()){
+    while(pos.z() < zmax() && ttest < ktraj.range().end()){
       ttest += tstep;
       pos = ktraj.position3(ttest);
       dr = pos.Rho() - radius();
