@@ -32,7 +32,7 @@ void print_usage() {
 int main(int argc, char **argv) {
   double rmax(800.0);
   double step(5.0);
-  string file;
+  string file("Data/DSMapDump.dat");
 
   static struct option long_options[] = {
     {"file",     required_argument, 0, 'f' },
@@ -43,19 +43,19 @@ int main(int argc, char **argv) {
   int opt;
   int long_index =0;
   while ((opt = getopt_long_only(argc, argv,"",
-	  long_options, &long_index )) != -1) {
+          long_options, &long_index )) != -1) {
     switch (opt) {
       case 'f' : file = string(optarg);
-		 break;
+                 break;
       case 'r' : rmax = atof(optarg);
-		 break;
+                 break;
       case 's' : step = atof(optarg);
-		 break;
+                 break;
       default: print_usage();
-	       exit(EXIT_FAILURE);
+               exit(EXIT_FAILURE);
     }
   }
-// not sure why this is necessary...
+  // not sure why this is necessary...
   gSystem->Load("lib/libTests.dylib");
   if(file.size()==0){
     cout << "No input file specified: terminating" << endl;

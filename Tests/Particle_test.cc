@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
   using PKTRAJ = KinKal::ParticleTrajectory<KTRAJ>;
   size_t npts(1000);
   int ntrks(-1);
-  string pfile, bfile("Data/DSMapDump.dat");
+  string pfile("Data/Mu2e_MuBeam.root"), bfile("Data/DSMapDump.dat");
   double zmax(-3500), tol(1e-3);
   double minmass(100.0);
 
@@ -87,7 +87,10 @@ int main(int argc, char **argv) {
     return 1;
   }
   // open the input particle pfile
-  TFile* ppfile = TFile::Open(pfile.c_str(),"READ");
+  FileFinder filefinder;
+  std::string fullfile = filefinder.fullFile(pfile);
+  cout << " particle file " << fullfile << endl;
+  TFile* ppfile = TFile::Open(fullfile.c_str(),"READ");
   // find the TTree in the pfile
   TDirectory* td = (TDirectory*)ppfile->Get("StepPointMCDumper");
   TTreeReader reader("nt",td);
@@ -95,8 +98,7 @@ int main(int argc, char **argv) {
   TTree* ptree = (TTree*)td->Get("nt");
   cout << "Particle TTree has " << ptree->GetEntries() << " Entries" << endl;
   // setup BField
-  FileFinder filefinder;
-  std::string fullfile = filefinder.fullFile(bfile);
+  fullfile = filefinder.fullFile(bfile);
   KinKal::AxialBFieldMap axfield(fullfile);
   cout << "axial field between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;

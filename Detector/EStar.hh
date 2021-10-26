@@ -8,6 +8,7 @@
 namespace TrackToy {
   class EStar {
     public:
+      EStar(){}
       // construct from a dump of the table (all 7 columns)
       EStar(std::string const& tablefile);
       // interpolated values of the tables
