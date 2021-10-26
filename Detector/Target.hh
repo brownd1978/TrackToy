@@ -48,8 +48,8 @@ namespace TrackToy {
         if(energy < pktraj.mass())break;
       }
       if(energy > pktraj.mass()){
- //       double endtime = tranges.back().end();
-//        updateEnergy(pktraj,endtime,retval);
+        double endtime = tranges.back().end();
+        updateEnergy(pktraj,endtime,retval);
       }
     }
     return retval;

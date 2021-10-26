@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
   float cee_, targetde_, ipade_, trackerde_;
   VEC3 cepos_, cemom_;
   float cet_;
-  int nipa_, ntrackerarcs_, ntrackercells_;
+  int npieces_, nipa_, ntrackerarcs_, ntrackercells_;
   int itrk_;
 
   static struct option long_options[] = {
@@ -122,8 +122,6 @@ int main(int argc, char **argv) {
                exit(EXIT_FAILURE);
     }
   }
-  // not sure why this is necessary...
-  gSystem->Load("lib/libTests.dylib");
   // open the input muonstops file
   TFile* mustopsfile = TFile::Open(mfile.c_str(),"READ");
   if(!mustopsfile){
@@ -183,6 +181,7 @@ int main(int argc, char **argv) {
       cetree_->Branch("cemom",&cemom_);
       cetree_->Branch("cet",&cet_,"cet/F");
       cetree_->Branch("targetde",&targetde_,"targetde/F");
+      cetree_->Branch("npieces",&npieces_,"npieces/I");
       cetree_->Branch("nipa",&nipa_,"nipa/I");
       cetree_->Branch("ipade",&ipade_,"ipade/F");
       cetree_->Branch("ntrackerarcs",&ntrackerarcs_,"ntrackerarcs/I");
@@ -195,6 +194,7 @@ int main(int argc, char **argv) {
   int icolor(kBlue);
   while (reader.Next() && (ntrks < 0 || itrk_ < ntrks)) { // need to loop over stops if ntrks > nstops TODO
     ++itrk_;
+//    cout << "Track " << itrk_ << endl;
     // reset tree variables
     targetde_ = ipade_ = trackerde_ = 0.0;
     nipa_ = ntrackerarcs_ = ntrackercells_ = 0;
@@ -222,24 +222,23 @@ int main(int argc, char **argv) {
     // initialize piecetraj
     PKTRAJ pktraj(lhelix);
     // extend to the end of the target or exiting the BField (backwards)
-  //  extendZ(pktraj,axfield,range.begin(), axfield.zMin(), tgtcyl.zmax(), tol);
-      extendZ(pktraj,axfield,range.begin(), axfield.zMin(), trackercyl.zmax(), tol);
+    extendZ(pktraj,axfield,range.begin(), axfield.zMin(), tgtcyl.zmax(), tol);
+ //     extendZ(pktraj,axfield,range.begin(), axfield.zMin(), trackercyl.zmax(), tol);
 // compute target energy loss, and update the trajectory accordingly
-//    targetde_ = target.updateTrajectory(pktraj);
-    // extend through the IPA FIXME
-//    double tstart = pktraj.back().range().begin();
+    targetde_ = target.updateTrajectory(pktraj);
+    double tstart = pktraj.back().range().begin();
 //    cout << "tstart = " << tstart << " pieces " << pktraj.pieces().size() << endl;
-//    extendZ(pktraj,axfield, tstart, axfield.zMin(), trackercyl.zmax(), tol);
-    // find intersections with tracker and target
+    extendZ(pktraj,axfield, tstart, axfield.zMin(), trackercyl.zmax(), tol);
+    npieces_ = pktraj.pieces().size();
+    // extend through the IPA FIXME
     TimeRanges iparanges, trackerranges;
-//    if(pktraj.position3(pktraj.range().end()).Z() > trackercyl.zmax()){
-      ipa.cyl().intersect(pktraj,iparanges,tstep);
-      trackercyl.intersect(pktraj,trackerranges,tstep);
-//    }
+    ipa.cyl().intersect(pktraj,iparanges,tstep);
+    // find intersections with tracker a
+    trackercyl.intersect(pktraj,trackerranges,tstep);
     // check that the particle reached the tracker
     double speed = pktraj.velocity(pktraj.range().begin()).R();// assume constant speed
     ntrackercells_ = tracker.nCells(speed, trackerranges);
-    cout << "ntrackercells " << ntrackercells_ << endl;
+//    cout << "ntrackercells " << ntrackercells_ << endl;
     if(ntrackercells_ > minncells){
       ntrackerarcs_ = trackerranges.size();
       double trackerpath(0.0);
@@ -253,9 +252,10 @@ int main(int argc, char **argv) {
         auto eloss = ipa.energyLoss(pktraj,trange);
         double de = eloss.mean();
         ipade->Fill(de);
-        double der = eloss.sample(tr_.Uniform(0.0,1.0));
+        double der = eloss.sample(tr_.Uniform(0.0,1.0)); // FIXME
         ipader->Fill(der);
-        ipade_ += der;
+//        ipade_ += der;
+        ipade_ += de;
       }
       ipades->Fill(ipade_);
       trackerde_ = trackerEStar.dEIonization(ke)*tracker.density()*trackerpath/10.0;
