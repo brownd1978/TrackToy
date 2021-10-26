@@ -36,27 +36,27 @@ int main(int argc, char **argv) {
   int opt;
   int long_index =0;
   while ((opt = getopt_long_only(argc, argv,"",
-	  long_options, &long_index )) != -1) {
+          long_options, &long_index )) != -1) {
     switch (opt) {
       case 'f' : file = string(optarg);
-		 break;
+                 break;
       case 'm' : emin = atof(optarg);
-		 break;
+                 break;
       case 'M' : emax = atof(optarg);
-		 break;
+                 break;
       case 'N' : nsample = atoi(optarg);
-		 break;
+                 break;
       default: print_usage();
-	       exit(EXIT_FAILURE);
+               exit(EXIT_FAILURE);
     }
   }
 
-// setup histograms
+  // setup histograms
   TFile murangefile("MuonRange.root","RECREATE");
   // create the object
   MuonRange murange(file.c_str(),1.0); // unit density: return gm/cm^2
   cout << " muon range file " << file << " has density " << murange.density() << " and ranges " << murange.rangeData().size() << endl;
-// sample and draw the range
+  // sample and draw the range
   std::vector<double> xpts, epts, mpts;
   xpts.reserve(nsample);
   epts.reserve(nsample);
@@ -69,7 +69,7 @@ int main(int argc, char **argv) {
     epts.push_back(erange);
     double mrange = murange.rangeMomentum(energy);
     mpts.push_back(mrange);
-//    cout << " energy " << energy << " range " << range << endl;
+    //    cout << " energy " << energy << " range " << range << endl;
   }
   TGraph *espectg = new TGraph(nsample,xpts.data(),epts.data());
   espectg->SetTitle("Muon Range;Energy (MeV);Range (gm/cm^{2})");

@@ -1,6 +1,6 @@
 add_library(Detector SHARED
-   HollowCylinder.cc
    Tracker.cc
+   Target.cc
    IPA.cc
    EStar.cc
 )

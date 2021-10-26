@@ -7,7 +7,7 @@
 #include "KinKal/Trajectory/ParticleTrajectory.hh"
 #include "TrackToy/General/MuonRange.hh"
 #include "TrackToy/General/FileFinder.hh"
-#include "TrackToy/Detector/HollowCylinder.hh"
+#include "TrackToy/Detector/Target.hh"
 #include "TFile.h"
 #include "TSystem.h"
 #include "TDirectory.h"
@@ -99,8 +99,9 @@ int main(int argc, char **argv) {
   cout << "axial field from file " << fullfile << " is between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;
   // setup target
-  HollowCylinder target(tfile);
-  cout << "target between " << target.zmin() << " and " << target.zmax() << " rmin " << target.rmin() << " rmax " << target.rmax() << endl;
+  Target target(tfile);
+  auto const& tgtcyl = target.cylinder();
+  cout << "tgtcyl between " << tgtcyl.zmin() << " and " << tgtcyl.zmax() << " rmin " << tgtcyl.rmin() << " rmax " << tgtcyl.rmax() << endl;
   // muon range table
   MuonRange muonrange(rfile.c_str(),target.density());
   cout << " muon range file " << rfile << " has density " << muonrange.density() << " and ranges " << muonrange.rangeData().size() << endl;
@@ -139,7 +140,7 @@ int main(int argc, char **argv) {
       PKTRAJ ptraj(lhelix);
       auto pos = pstate->position3();
       // extend to the end of the target
-      while(pos.Z() < target.zmax()){
+      while(pos.Z() < tgtcyl.zmax()){
         range.begin() = axfield.rangeInTolerance(ptraj.back(),range.begin(),tol);
         if(range.begin() < range.end()){
           // Predict new position and momentum at this end, making linear correction for BField effects
@@ -156,7 +157,7 @@ int main(int argc, char **argv) {
       //       << " to " << ptraj.position3(ptraj.range().end()) << endl;
       TimeRanges tranges;
       double speed = ptraj.velocity(ptraj.range().begin()).R();// assume constant speed
-      target.intersect(ptraj,tranges,tstep);
+      tgtcyl.intersect(ptraj,tranges,tstep);
       //      cout << "Found " << tranges.size() << " Intersecting ranges, with boundaries:" << endl;
       double path(0.0);
       bool stopped(false);
@@ -178,7 +179,7 @@ int main(int argc, char **argv) {
       if(stopped){
         ++nstopped;
         mumoms->Fill(pstate->momentum3().R());
-        muszpos->Fill(stoppos.Z()-target.zpos());
+        muszpos->Fill(stoppos.Z()-tgtcyl.zpos());
         musxypos->Fill(stoppos.X(),stoppos.Y());
         mustime->Fill(stoppos.T());
         mustops->Fill();

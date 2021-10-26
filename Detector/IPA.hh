@@ -1,8 +1,11 @@
 //
 //  Inner proton absorber.  Currently a thin cylinder
 //
+#ifndef TrackToy_Detector_IPA_hh
+#define TrackToy_Detector_IPA_hh
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/MatEnv/DetMaterial.hh"
+#include "KinKal/General/TimeRange.hh"
 #include "TrackToy/General/Moyal.hh"
 #include "TrackToy/Detector/CylindricalShell.hh"
 namespace TrackToy {
@@ -33,5 +36,5 @@ namespace TrackToy {
 
   }
 }
-
+#endif
 

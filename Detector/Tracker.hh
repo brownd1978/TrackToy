@@ -16,12 +16,14 @@ namespace TrackToy {
       unsigned nCells() const { return ncells_; }
       // compute # of cells for a given trajectory
       double nCells(double speed, TimeRanges const& tranges) const;
+      double density() const { return density_;} // gm/cm^3
     private:
       HollowCylinder cyl_; // geometric form of the tracker
       CellOrientation orientation_; // orientation of the cells
       unsigned ncells_; // number of cells
       double cellArea_; // average x-sectional area of the cells (not including track projection)
       double cellDensity_; // cells per mm^3
+      double density_; // total average density
       double activeDensity_;  // gm/cm^3 of active material
       double gain_; // gain factor (C/MeV)
   };

@@ -15,7 +15,7 @@ namespace TrackToy {
     std::string line;
     static std::string comment("#");
     std::ifstream tgt_stream(fullfile);
-    double rmin(-1.0), rmax(-1.0), zpos(-1.0), zhalf(-1.0), density(-1.0);
+    double rmin(-1.0), rmax(-1.0), zpos(-1.0), zhalf(-1.0);
     unsigned orient(0);
     while (std::getline(tgt_stream, line)) {
       // skip comments and blank lines
@@ -23,12 +23,12 @@ namespace TrackToy {
         // strip leading whitespace
         line = std::regex_replace(line, std::regex("^ +"), "");
         std::istringstream iss(line);
-        iss >> rmin >> rmax >> zpos >> zhalf >> density >> ncells_ >> orient >> cellArea_ >> activeDensity_ >> gain_;
+        iss >> rmin >> rmax >> zpos >> zhalf >> density_ >> ncells_ >> orient >> cellArea_ >> activeDensity_ >> gain_;
         break;
       }
     }
     orientation_ = (CellOrientation)orient;
-    cyl_ = HollowCylinder(rmin,rmax,zpos,zhalf,density);
+    cyl_ = HollowCylinder(rmin,rmax,zpos,zhalf);
     cellDensity_ = (float)ncells_/cyl_.volume();
   }
   double Tracker::nCells(double speed, TimeRanges const& tranges) const {

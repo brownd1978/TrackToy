@@ -1,5 +1,7 @@
 #
 #  Parameters describing the Mu2e target
-# rmin rmax zpos zhalf density
-21.3 75.0 -4304.0 400.0 1.32e-2
-
+# first material; name and density (gm/cm^3)
+Al 1.32e-2
+# then geometry:
+# rmin rmax zpos zhalf
+21.3 75.0 -4304.0 400.0
