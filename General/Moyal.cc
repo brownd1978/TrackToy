@@ -22,8 +22,7 @@ namespace TrackToy {
   double Moyal::sample(double randval) const {
     float erfval = 1.0-2*randval;
     float inverfc = erfinvf(erfval);
-    static double const sqrt2(sqrt(2.0));
-    double moyalval = mu_ - 2.0*sigma_*log(sqrt2*inverfc);
+    double moyalval = mu_ - 2.0*sigma_*log(M_SQRT2*inverfc);
     return moyalval;
   }
 

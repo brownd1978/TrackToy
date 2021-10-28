@@ -26,14 +26,14 @@ namespace TrackToy {
   };
 
   template<class PKTRAJ> Moyal IPA::energyLoss(PKTRAJ const& pktraj, KinKal::TimeRange const& trange) const {
-  // sample the trajectory at the middle of the range
-  auto const& ktraj = pktraj.nearestPiece(trange.mid());
-  double beta = ktraj.beta();
-  double mom = ktraj.momentum();
-  double plen = ktraj.speed(trange.mid())*trange.range();
-  double elossMPV = mat_->energyLoss(mom,plen,ktraj.mass()); // most probable energy loss = Moyal mu
-  return Moyal(elossMPV, mat_->eloss_xi(beta,plen));
-
+    // sample the trajectory at the middle of the range
+    auto const& ktraj = pktraj.nearestPiece(trange.mid());
+    double beta = ktraj.beta();
+    double mom = ktraj.momentum();
+    double plen = ktraj.speed(trange.mid())*trange.range();
+    double xi = mat_->eloss_xi(beta,plen);
+    double dp = mat_->energyLossMPV(mom,plen,ktraj.mass());
+    return Moyal(dp,xi);
   }
 }
 #endif
