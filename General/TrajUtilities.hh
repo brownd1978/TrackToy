@@ -11,12 +11,10 @@
 #include <stdio.h>
 
 namespace TrackToy {
-  //  Update the state of a trajectory for a change in the energy.  This will append a new
-  //  trajectory on a piecetraj at the point of the energy loss assignment
-  template<class KTRAJ> void updateEnergy(KinKal::ParticleTrajectory<KTRAJ>& pktraj, double time, double de) {
+  //  Update the state of a trajectory for a change in the energy.  If this energy is still physical, this will append a new
+  //  trajectory on a piecetraj at the point of the energy loss assignment and return false.  If not, it will terminate the trajectory and return true.
+  template<class KTRAJ> bool updateEnergy(KinKal::ParticleTrajectory<KTRAJ>& pktraj, double time, double newe) {
     auto const& ktraj = pktraj.nearestPiece(time);
-    double olde = ktraj.energy();
-    double newe = olde + de;
     if(newe > pktraj.mass()) {
       // sample the momentum and position at this time
       auto dir = ktraj.direction(time);
@@ -32,13 +30,18 @@ namespace TrackToy {
       // append this back, allowing removal
       //      std::cout << "2 appending " << range << " to range " << pktraj.range() << std::endl;
       pktraj.append(newtraj,true);
+      return false;
     } else {
-      throw std::invalid_argument("Unphysical energy");\
+    // terminate the particle here
+      KinKal::TimeRange range(pktraj.range().begin(),time);
+      pktraj.setRange(range, true);
+      return true;
     }
   }
 
   // extend a trajector to the given range for the given BField to the given z range
-  template<class KTRAJ> void extendZ(KinKal::ParticleTrajectory<KTRAJ>& pktraj, KinKal::BFieldMap const& bfield,double tstart, double zmin, double zmax,double tol) {
+  template<class KTRAJ> double extendZ(KinKal::ParticleTrajectory<KTRAJ>& pktraj, KinKal::BFieldMap const& bfield, double zmin, double zmax,double tol) {
+    double tstart = pktraj.pieces().back().range().begin();
     auto pos = pktraj.position3(tstart);
     KinKal::TimeRange range(tstart, pktraj.range().end());
     while(pos.Z() < zmax && pos.Z() > zmin){
@@ -57,6 +60,7 @@ namespace TrackToy {
         break;
       }
     }
+    return pos.Z();
   }
 }
 #endif

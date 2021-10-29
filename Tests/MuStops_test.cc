@@ -157,7 +157,8 @@ int main(int argc, char **argv) {
       //       << " to " << ptraj.position3(ptraj.range().end()) << endl;
       TimeRanges tranges;
       double speed = ptraj.velocity(ptraj.range().begin()).R();// assume constant speed
-      tgtcyl.intersect(ptraj,tranges,tstep);
+      double tstart = pstate->time();
+      tgtcyl.intersect(ptraj,tranges,tstart,tstep);
       //      cout << "Found " << tranges.size() << " Intersecting ranges, with boundaries:" << endl;
       double path(0.0);
       bool stopped(false);

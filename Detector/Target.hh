@@ -14,6 +14,7 @@
 namespace TrackToy {
   class Target {
     public:
+      using TimeRanges = std::vector<KinKal::TimeRange>;
       enum Material{unknown=-1,Al=1,Ti=2};
       Target(std::string const& tgtfile); // construct from a structured text file
       double density() const { return density_;} // gm/cm^3
@@ -22,8 +23,9 @@ namespace TrackToy {
       double electronEnergyLoss(double ke, double pathlen) const;
       double protonEnergyLoss(double ke, double pathlen) const; // TODO
       std::string material() const;
-      // extrapolate the trajectory through the target and update it for the energy loss on exit
-      template<class PKTRAJ> double updateTrajectory(PKTRAJ& pktraj) const;
+      // extrapolate the trajectory through the target and update it for the energy loss on exit.  Return value
+      // is whether the particle stops in the target
+      template<class PKTRAJ> bool updateTrajectory(PKTRAJ& pktraj,TimeRanges& intersections) const;
     private:
       Material mat_;
       EStar estar_; // energystar table
@@ -31,26 +33,22 @@ namespace TrackToy {
       double density_;
   };
 
-  template<class PKTRAJ> double Target::updateTrajectory(PKTRAJ& pktraj) const {
-    double retval(0.0);
-    std::vector<KinKal::TimeRange> tranges;
+  template<class PKTRAJ> bool Target::updateTrajectory(PKTRAJ& pktraj, TimeRanges& intersections) const {
+    bool retval(false);
+    // first find the intersections.
+    double tstart = pktraj.range().begin();
     static double tstep(0.01);
-    cyl_.intersect(pktraj,tranges,tstep);
-    if(tranges.size() > 0){
-      double energy = pktraj.energy(tranges.front().begin());
-      double speed = pktraj.speed(tranges.front().begin());
-      for (auto const& range : tranges) {
-        double pathlen = range.range()*speed;
-        // should check for particle type FIXME!
-        double de = electronEnergyLoss(energy-pktraj.mass(),pathlen);
-        energy += de;
-        retval += de;
-        if(energy < pktraj.mass())break;
+    cyl_.intersect(pktraj,intersections,tstart,tstep);
+    if(intersections.size() > 0){
+      double energy = pktraj.energy(intersections.front().begin());
+      double speed = pktraj.speed(intersections.front().begin());
+      for (auto const& range : intersections) {
+	double pathlen = range.range()*speed;
+	// should check for particle type FIXME!
+	double de = electronEnergyLoss(energy-pktraj.mass(),pathlen);
+	energy += de;
       }
-      if(energy > pktraj.mass()){
-        double endtime = tranges.back().end();
-        updateEnergy(pktraj,endtime,retval);
-      }
+      retval = updateEnergy(pktraj,intersections.back().end(),energy);
     }
     return retval;
   }

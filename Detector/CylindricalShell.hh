@@ -21,16 +21,16 @@ namespace TrackToy {
       double zhalf() const { return zhalf_;}
       // find intersections of a trajectory with this cylinder.  Return the time ranges when the
       // trajectory crosses the shell
-      template<class KTRAJ> void intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const;
+      template<class KTRAJ> void intersect(KTRAJ const& ktraj, TimeRanges& tranges,double tstart, double tstep) const;
     private:
       double radius_, rhalf_, zpos_, zhalf_;
   };
 
-  template<class KTRAJ> void CylindricalShell::intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const {
+  template<class KTRAJ> void CylindricalShell::intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstart, double tstep) const {
     // define boundary times, assuming constant velocity
     tranges.clear();
     // search for an intersection
-    double ttest = ktraj.range().begin();
+    double ttest = tstart;
     auto pos = ktraj.position3(ttest);
     if(pos.Z() < zmin() || pos.Z() > zmax()){
 // move to the edge
