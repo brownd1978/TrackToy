@@ -67,6 +67,7 @@ int main(int argc, char **argv) {
   // ttree variables
   TTree* cetree_;
   float cee_, targetde_, ipade_, trackerde_;
+  float targete_, ipae_;
   VEC3 cepos_, cemom_;
   float cet_;
   int npieces_, ntarget_, nipa_, ntrackerarcs_, ntrackercells_;
@@ -170,9 +171,9 @@ int main(int argc, char **argv) {
   TH1F* tarde = new TH1F("tarde","Target <dE>;<dE> (MeV)",100,0.001,5.0);
   TH1F* trknc = new TH1F("trknc","Tracker N Cells;N Cells",100,0.001,100.0);
   TH1F* nipa = new TH1F("nipa","N IPA Intersections",50,-0.5,49.5);
-  TH1F* ipade = new TH1F("ipde","IPA Intersection mean dE",100,-0.3,0.0);
-  TH1F* ipader = new TH1F("ipder","IPA Intersection sample dE",100,-0.3,0.0);
-  TH1F* ipades = new TH1F("ipdes","IPA Intersections Sum dE",100,-0.5,0.0);
+  TH1F* ipade = new TH1F("ipde","IPA Intersection mean dE",100,0.0,0.3);
+  TH1F* ipader = new TH1F("ipder","IPA Intersection sample dE",100,0.0,0.3);
+  TH1F* ipades = new TH1F("ipdes","IPA Intersections Sum dE",100,0.0,0.5);
   if(ttree){
     cetree_ = new TTree("ce","ce");
     cetree_->Branch("itrk",&itrk_,"itrk/I");
@@ -188,6 +189,8 @@ int main(int argc, char **argv) {
     cetree_->Branch("ntrackerarcs",&ntrackerarcs_,"ntrackerarcs/I");
     cetree_->Branch("ntrackercells",&ntrackercells_,"ntrackercells/I");
     cetree_->Branch("trackerde",&trackerde_,"trackerde/F");
+    cetree_->Branch("targete",&targete_,"targete/F");
+    cetree_->Branch("ipae",&ipae_,"ipae/F");
   }
 
   std::vector<TPolyLine3D*> plhel;
@@ -198,6 +201,7 @@ int main(int argc, char **argv) {
     //    cout << "Track " << itrk_ << endl;
     // reset tree variables
     targetde_ = ipade_ = trackerde_ = 0.0;
+    targete_ = ipae_ = 0.0;
     nipa_ = ntrackerarcs_ = ntrackercells_ = 0;
     // generate a random CeEndpoint momentum FIXME!
     cee_ = cespect.params().EEnd_;
@@ -226,91 +230,90 @@ int main(int argc, char **argv) {
     double ztgt = extendZ(pktraj,axfield, axfield.zMin(), tgtcyl.zmax(), tol);
 //    cout << "Z target extend " << ztgt << endl;
     if(ztgt > tgtcyl.zmin()){
-      //     extendZ(pktraj,axfield,range.begin(), axfield.zMin(), trackercyl.zmax(), tol);
       TimeRanges targetinters, ipainters, trackerinters;
       // compute target energy loss, and update the trajectory accordingly
-      bool stops = target.updateTrajectory(pktraj,targetinters);
-      targetde_ = pktraj.energy(pktraj.range().end()) - cee_;
+      bool tgtstops = target.updateTrajectory(pktraj,targetinters);
+      targete_ = pktraj.energy(pktraj.range().end());
+      targetde_ = targete_ - cee_;
 //      cout << "ntargetinters " << targetinters.size() << endl;
-      if(!stops){
+      if(!tgtstops){
 	ntarget_ = targetinters.size();
 	// extend through the IPA
 	extendZ(pktraj,axfield, axfield.zMin(), ipa.cyl().zmax(), tol);
-//	double trkent = extendZ(pktraj,axfield, axfield.zMin(), ipa.cyl().zmax(), tol);
-//	cout << "Z ipa extend " << trkent << endl;
 	// find IPA intersections
 	double tstart = pktraj.range().begin();
 	if(targetinters.size() > 0) tstart = targetinters.back().end();
-	// extend through tracker
-	extendZ(pktraj,axfield, axfield.zMin(), trackercyl.zmax(), tol);
-//	double trkexit = extendZ(pktraj,axfield, axfield.zMin(), trackercyl.zmax(), tol);
-//	cout << "Z tracker extend " << trkexit << endl;
+	// extend through ipa
+	extendZ(pktraj,axfield, axfield.zMin(), ipa.cyl().zmax(), tol);
 	// find intersections with ipa
 	ipa.cyl().intersect(pktraj,ipainters,tstart,tstep);
-//	cout << "nipainters " << ipainters.size() << endl;
-	// update particle state for IPA energy loss FIXME
-	if(ipainters.size() > 0) tstart = ipainters.back().end();
-	// find intersections with tracker
-	trackercyl.intersect(pktraj,trackerinters,tstart,tstep);
-//	cout << "ntrackerinters " << trackerinters.size() << endl;
-	// check that the particle reached the tracker
-	double speed = pktraj.velocity(pktraj.range().begin()).R();// assume constant speed
-	npieces_ = pktraj.pieces().size();
-	ntrackercells_ = tracker.nCells(speed, trackerinters);
-//	cout << "ntrackercells " << ntrackercells_ << endl;
-	if(ntrackercells_ > minncells){
-	  ntrackerarcs_ = trackerinters.size();
-	  double trackerpath(0.0);
-	  for (auto const& range : trackerinters) trackerpath += range.range()*speed;
-	  double ke = cestate.energy() - cestate.mass();
-	  // compute IPA energy loss including Moyal fluctuation
-	  nipa_ = ipainters.size();
-	  nipa->Fill(nipa_);
-	  ipade_ = 0.0;
-	  for(auto const& trange : ipainters) {
-	    auto eloss = ipa.energyLoss(pktraj,trange);
-	    double de = eloss.mean();
-	    ipade->Fill(de);
-	    double der = eloss.sample(tr_.Uniform(0.0,1.0)); // FIXME
-	    ipader->Fill(der);
-	    //        ipade_ += der;
-	    ipade_ += de;
-	  }
-	  ipades->Fill(ipade_);
-	  trackerde_ = trackerEStar.dEIonization(ke)*tracker.density()*trackerpath/10.0;
-	  //    cout << "targetde_ " << targetde_ << " trackerde_ " << trackerde_ << endl;
-	  tarde->Fill(targetde_);
-	  trkde->Fill(trackerde_);
-	  trknc->Fill(ntrackercells_);
-
-	  //    cout << "Found " << targetinters.size() << " target ranges, path " << targetpath
-	  //    << " and " << trackerinters.size() << " tracker ranges, path " << trackerpath << endl;
-	  double targetpath(0.0);
-	  tarpath->Fill(targetpath);
-	  trkpath->Fill(trackerpath);
-	  trktime->Fill(fmod(pktraj.range().mid(),1695.0));
-	  // generate tracker hits and straw interactions TODO
-	  // fit tracker hits TODO
-	  // fill fit information TODO
-	  //
-	  if(draw){
-	    plhel.push_back(new TPolyLine3D(npts));
-	    plhel.back()->SetLineColor(icolor++%10);
-	    double tstart = pktraj.range().begin();
-	    double ts = pktraj.range().range()/(npts-1);
-	    KinKal::VEC3 ppos;
-	    for(unsigned ipt=0;ipt<npts;ipt++){
-	      double t = tstart + ipt*ts;
-	      ppos = pktraj.position3(t);
-	      plhel.back()->SetPoint(ipt,ppos.X(),ppos.Y(),ppos.Z());
+	nipa_ = ipainters.size();
+	nipa->Fill(nipa_);
+	ipade_ = 0.0;
+	for(auto const& ipainter : ipainters) {
+	  auto eloss = ipa.energyLoss(pktraj,ipainter);
+	  double de = eloss.mean();
+	  ipade->Fill(-de);
+	  double der = eloss.sample(tr_.Uniform(0.0,1.0)); // currently broken, FIXME
+	  ipader->Fill(-der);
+	  //        ipade_ += der;
+	  ipade_ += de;
+	}
+	ipades->Fill(-ipade_);
+	bool ipastops(false);
+	if(ipainters.size() > 0){
+	  double energy = pktraj.energy(tstart) + ipade_;
+	  ipastops = updateEnergy(pktraj,ipainters.back().end(),energy);
+	  tstart = ipainters.back().end();
+	}
+	ipae_ = pktraj.energy(tstart);
+	if(! ipastops) {
+	  // extend through tracker
+	  extendZ(pktraj,axfield, axfield.zMin(), trackercyl.zmax(), tol);
+	  // find intersections with tracker
+	  trackercyl.intersect(pktraj,trackerinters,tstart,tstep);
+	  //	cout << "ntrackerinters " << trackerinters.size() << endl;
+	  // check that the particle reached the tracker
+	  double speed = pktraj.velocity(pktraj.range().begin()).R();// assume constant speed
+	  npieces_ = pktraj.pieces().size();
+	  ntrackercells_ = tracker.nCells(speed, trackerinters);
+	  //	cout << "ntrackercells " << ntrackercells_ << endl;
+	  if(ntrackercells_ > minncells){
+	    ntrackerarcs_ = trackerinters.size();
+	    double trackerpath(0.0);
+	    for (auto const& range : trackerinters) trackerpath += range.range()*speed;
+	    double ke = cestate.energy() - cestate.mass();
+	    trackerde_ = trackerEStar.dEIonization(ke)*tracker.density()*trackerpath/10.0;
+	    tarde->Fill(-targetde_);
+	    trkde->Fill(trackerde_);
+	    trknc->Fill(ntrackercells_);
+	    double targetpath(0.0);
+	    tarpath->Fill(targetpath);
+	    trkpath->Fill(trackerpath);
+	    trktime->Fill(fmod(pktraj.range().mid(),1695.0));
+	    // generate tracker hits and straw interactions TODO
+	    // fit tracker hits TODO
+	    // fill fit information TODO
+	    //
+	    if(draw){
+	      plhel.push_back(new TPolyLine3D(npts));
+	      plhel.back()->SetLineColor(icolor++%10);
+	      double tstart = pktraj.range().begin();
+	      double ts = pktraj.range().range()/(npts-1);
+	      KinKal::VEC3 ppos;
+	      for(unsigned ipt=0;ipt<npts;ipt++){
+		double t = tstart + ipt*ts;
+		ppos = pktraj.position3(t);
+		plhel.back()->SetPoint(ipt,ppos.X(),ppos.Y(),ppos.Z());
+	      }
 	    }
-	  }
-	  cetree_->Fill();
-	} // particle hits the tracker
+	    cetree_->Fill();
+	  } // particle hits the tracker
+	} // particle stops in IPA
       } // particle stops in the target
-//	cout << "particle stops in target " << endl;
+      //	cout << "particle stops in target " << endl;
     } // particle exits the target going upstream
-//      cout << "particle exits bfield " << endl;
+    //      cout << "particle exits bfield " << endl;
   }
   // Draw target
   TCanvas* ctrkcan = new TCanvas("CeTrack");
@@ -318,11 +321,12 @@ int main(int argc, char **argv) {
   ctrkcan->cd(1);
   tarde->Draw();
   ctrkcan->cd(2);
-  trkde->Draw();
+  ipades->Draw();
   ctrkcan->cd(3);
-  trknc->Draw();
+  trkde->Draw();
   ctrkcan->cd(4);
-  trktime->Draw();
+  trknc->Draw();
+
   ctrkcan->Write();
 
   if(draw){

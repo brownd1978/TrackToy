@@ -46,7 +46,7 @@ namespace TrackToy {
 	double pathlen = range.range()*speed;
 	// should check for particle type FIXME!
 	double de = electronEnergyLoss(energy-pktraj.mass(),pathlen);
-	energy += de;
+	energy -= de;
       }
       retval = updateEnergy(pktraj,intersections.back().end(),energy);
     }

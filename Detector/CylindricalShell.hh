@@ -5,6 +5,7 @@
 #ifndef TrackToy_Detector_CylindricalShell_hh
 #define TrackToy_Detector_CylindricalShell_hh
 #include "KinKal/General/TimeRange.hh"
+#include "TrackToy/General/TrajUtilities.hh"
 #include <string>
 #include <vector>
 namespace TrackToy {
@@ -26,30 +27,27 @@ namespace TrackToy {
       double radius_, rhalf_, zpos_, zhalf_;
   };
 
-  template<class KTRAJ> void CylindricalShell::intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstart, double tstep) const {
+  template<class PKTRAJ> void CylindricalShell::intersect(PKTRAJ const& pktraj, TimeRanges& tranges, double tstart, double tstep) const {
     // define boundary times, assuming constant velocity
     tranges.clear();
-    // search for an intersection
-    double ttest = tstart;
-    auto pos = ktraj.position3(ttest);
-    if(pos.Z() < zmin() || pos.Z() > zmax()){
-// move to the edge
-      double tmin = std::max(ttest,ktraj.zTime(zmin()));
-      double tmax = std::max(ttest,ktraj.zTime(zmax()));
-      ttest = std::min(tmin,tmax);
-      pos = ktraj.position3(ttest);
-    }
+    // search for intersections following the starting time
+    double ttest = timeStep(pktraj,zmin(),zmax(),tstart,tstep) - tstep;
+    auto pos = pktraj.position3(ttest);
     double dr = pos.Rho() - radius();
     double olddr = dr;
-    while(pos.z() < zmax() && ttest < ktraj.range().end()){
-      ttest += tstep;
-      pos = ktraj.position3(ttest);
+    while(ttest < pktraj.range().end()){
+    // step
+      ttest = timeStep(pktraj,zmin(),zmax(),ttest,tstep);
+      auto oldpos = pos;
+      pos = pktraj.position3(ttest);
       dr = pos.Rho() - radius();
-      if(olddr*dr < 0) {
+      if(olddr*dr < 0 && (
+	(pos.Z() > zmin() && pos.Z() < zmax()) ||
+	(oldpos.Z() > zmin() && oldpos.Z() < zmax()) ) ) {
       // we've crossed the shell.  Interpolate to the exact crossing
         double tx = ttest - tstep*fabs(dr/(dr-olddr));
         // compute the crossing time range
-        auto vel = ktraj.velocity(tx);
+        auto vel = pktraj.velocity(tx);
         double dt = rhalf_/vel.Rho();
         tranges.push_back(KinKal::TimeRange(tx-dt,tx+dt));
       }

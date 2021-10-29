@@ -62,6 +62,33 @@ namespace TrackToy {
     }
     return pos.Z();
   }
+
+  template<class KTRAJ> double timeStep(KinKal::ParticleTrajectory<KTRAJ>const& pktraj, double zmin, double zmax, double tstart, double tstep) {
+    double ttest = tstart;
+    auto pos = pktraj.position3(ttest);
+    double zpos = 0.5*(zmin+zmax);
+    if(pos.Z() > zmin && pos.Z() < zmax){
+      // take small steps if we're in the right z range
+      ttest += tstep;
+    } else {
+      // step through the pieces till we are going in the right direction
+      auto vel = pktraj.velocity(ttest);
+      while ( (pos.Z()-zpos)*vel.z() > 0.0 && ttest < pktraj.range().end() ){
+	auto const& piece = pktraj.nearestPiece(ttest);
+	ttest = piece.range().end() + tstep;
+	pos = pktraj.position3(ttest);
+	vel = pktraj.velocity(ttest);
+      }
+      // step through the pieces till we're in the right z range
+      while( ttest < pktraj.range().end() &&
+	  ((vel.Z() > 0.0 && pos.Z() < zmin) ||
+	   (vel.Z() < 0.0 && pos.Z() > zmax)) ){
+	auto const& piece = pktraj.nearestPiece(ttest);
+	ttest = piece.range().end() + tstep;
+	pos = pktraj.position3(ttest);
+      }
+    }
+    return ttest;
+  }
 }
 #endif
-
