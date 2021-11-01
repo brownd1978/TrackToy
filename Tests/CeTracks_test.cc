@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
   VEC3 cepos_, cemom_;
   float cet_;
   int npieces_, ntarget_, nipa_, ntrackerarcs_, ntrackercells_;
-  int itrk_;
+  int itrk_(0);
 
   static struct option long_options[] = {
     {"mustopsfile",     required_argument, 0, 'm' },
@@ -91,36 +91,36 @@ int main(int argc, char **argv) {
   int opt;
   int long_index =0;
   while ((opt = getopt_long_only(argc, argv,"",
-	  long_options, &long_index )) != -1) {
+          long_options, &long_index )) != -1) {
     switch (opt) {
       case 'F' : bfile = string(optarg);
-		 break;
+                 break;
       case 'm' : mfile = string(optarg);
-		 break;
+                 break;
       case 't' : targetfile = string(optarg);
-		 break;
+                 break;
       case 'T' : trackerfile = string(optarg);
-		 break;
+                 break;
       case 'i' : ipafile = string(optarg);
-		 break;
+                 break;
       case 'e' : endpoint = atof(optarg);
-		 break;
+                 break;
       case 'x' : tol = atof(optarg);
-		 break;
+                 break;
       case 's' : tstep = atof(optarg);
-		 break;
+                 break;
       case 'N' : npts = atoi(optarg);
-		 break;
+                 break;
       case 'n' : ntrks = atoi(optarg);
-		 break;
+                 break;
       case 'd' : draw = atoi(optarg);
-		 break;
+                 break;
       case 'r' : ttree = atoi(optarg);
-		 break;
+                 break;
       case 'M' : minncells = atoi(optarg);
-		 break;
+                 break;
       default: print_usage();
-	       exit(EXIT_FAILURE);
+               exit(EXIT_FAILURE);
     }
   }
   // open the input muonstops file
@@ -196,8 +196,16 @@ int main(int argc, char **argv) {
   std::vector<TPolyLine3D*> plhel;
   // loop over stops
   int icolor(kBlue);
-  while (reader.Next() && (ntrks < 0 || itrk_ < ntrks)) { // need to loop over stops if ntrks > nstops TODO
+  if(ntrks<0)ntrks = mtree->GetEntries();
+  while (itrk_ < ntrks) { // need to loop over stops if ntrks > nstops TODO
     ++itrk_;
+    if(!reader.Next()){
+      reader.Restart();
+      if(!reader.Next()){
+        cout << "Unable to rewind file" << mustopsfile << endl;
+        return -2;
+      }
+    }
     //    cout << "Track " << itrk_ << endl;
     // reset tree variables
     targetde_ = ipade_ = trackerde_ = 0.0;
@@ -228,88 +236,88 @@ int main(int argc, char **argv) {
     PKTRAJ pktraj(lhelix);
     // extend to the end of the target or exiting the BField (backwards)
     double ztgt = extendZ(pktraj,axfield, axfield.zMin(), tgtcyl.zmax(), tol);
-//    cout << "Z target extend " << ztgt << endl;
+    //    cout << "Z target extend " << ztgt << endl;
     if(ztgt > tgtcyl.zmin()){
       TimeRanges targetinters, ipainters, trackerinters;
       // compute target energy loss, and update the trajectory accordingly
       bool tgtstops = target.updateTrajectory(pktraj,targetinters);
       targete_ = pktraj.energy(pktraj.range().end());
       targetde_ = targete_ - cee_;
-//      cout << "ntargetinters " << targetinters.size() << endl;
+      //      cout << "ntargetinters " << targetinters.size() << endl;
       if(!tgtstops){
-	ntarget_ = targetinters.size();
-	// extend through the IPA
-	extendZ(pktraj,axfield, axfield.zMin(), ipa.cyl().zmax(), tol);
-	// find IPA intersections
-	double tstart = pktraj.range().begin();
-	if(targetinters.size() > 0) tstart = targetinters.back().end();
-	// extend through ipa
-	extendZ(pktraj,axfield, axfield.zMin(), ipa.cyl().zmax(), tol);
-	// find intersections with ipa
-	ipa.cyl().intersect(pktraj,ipainters,tstart,tstep);
-	nipa_ = ipainters.size();
-	nipa->Fill(nipa_);
-	ipade_ = 0.0;
-	for(auto const& ipainter : ipainters) {
-	  auto eloss = ipa.energyLoss(pktraj,ipainter);
-	  double de = eloss.mean();
-	  ipade->Fill(-de);
-	  double der = eloss.sample(tr_.Uniform(0.0,1.0)); // currently broken, FIXME
-	  ipader->Fill(-der);
-	  //        ipade_ += der;
-	  ipade_ += de;
-	}
-	ipades->Fill(-ipade_);
-	bool ipastops(false);
-	if(ipainters.size() > 0){
-	  double energy = pktraj.energy(tstart) + ipade_;
-	  ipastops = updateEnergy(pktraj,ipainters.back().end(),energy);
-	  tstart = ipainters.back().end();
-	}
-	ipae_ = pktraj.energy(tstart);
-	if(! ipastops) {
-	  // extend through tracker
-	  extendZ(pktraj,axfield, axfield.zMin(), trackercyl.zmax(), tol);
-	  // find intersections with tracker
-	  trackercyl.intersect(pktraj,trackerinters,tstart,tstep);
-	  //	cout << "ntrackerinters " << trackerinters.size() << endl;
-	  // check that the particle reached the tracker
-	  double speed = pktraj.velocity(pktraj.range().begin()).R();// assume constant speed
-	  npieces_ = pktraj.pieces().size();
-	  ntrackercells_ = tracker.nCells(speed, trackerinters);
-	  //	cout << "ntrackercells " << ntrackercells_ << endl;
-	  if(ntrackercells_ > minncells){
-	    ntrackerarcs_ = trackerinters.size();
-	    double trackerpath(0.0);
-	    for (auto const& range : trackerinters) trackerpath += range.range()*speed;
-	    double ke = cestate.energy() - cestate.mass();
-	    trackerde_ = trackerEStar.dEIonization(ke)*tracker.density()*trackerpath/10.0;
-	    tarde->Fill(-targetde_);
-	    trkde->Fill(trackerde_);
-	    trknc->Fill(ntrackercells_);
-	    double targetpath(0.0);
-	    tarpath->Fill(targetpath);
-	    trkpath->Fill(trackerpath);
-	    trktime->Fill(fmod(pktraj.range().mid(),1695.0));
-	    // generate tracker hits and straw interactions TODO
-	    // fit tracker hits TODO
-	    // fill fit information TODO
-	    //
-	    if(draw){
-	      plhel.push_back(new TPolyLine3D(npts));
-	      plhel.back()->SetLineColor(icolor++%10);
-	      double tstart = pktraj.range().begin();
-	      double ts = pktraj.range().range()/(npts-1);
-	      KinKal::VEC3 ppos;
-	      for(unsigned ipt=0;ipt<npts;ipt++){
-		double t = tstart + ipt*ts;
-		ppos = pktraj.position3(t);
-		plhel.back()->SetPoint(ipt,ppos.X(),ppos.Y(),ppos.Z());
-	      }
-	    }
-	    cetree_->Fill();
-	  } // particle hits the tracker
-	} // particle stops in IPA
+        ntarget_ = targetinters.size();
+        // extend through the IPA
+        extendZ(pktraj,axfield, axfield.zMin(), ipa.cyl().zmax(), tol);
+        // find IPA intersections
+        double tstart = pktraj.range().begin();
+        if(targetinters.size() > 0) tstart = targetinters.back().end();
+        // extend through ipa
+        extendZ(pktraj,axfield, axfield.zMin(), ipa.cyl().zmax(), tol);
+        // find intersections with ipa
+        ipa.cyl().intersect(pktraj,ipainters,tstart,tstep);
+        nipa_ = ipainters.size();
+        nipa->Fill(nipa_);
+        ipade_ = 0.0;
+        for(auto const& ipainter : ipainters) {
+          auto eloss = ipa.energyLoss(pktraj,ipainter);
+          double de = eloss.mean();
+          ipade->Fill(-de);
+          double der = eloss.sample(tr_.Uniform(0.0,1.0)); // currently broken, FIXME
+          ipader->Fill(-der);
+          //        ipade_ += der;
+          ipade_ += de;
+        }
+        ipades->Fill(-ipade_);
+        bool ipastops(false);
+        if(ipainters.size() > 0){
+          double energy = pktraj.energy(tstart) + ipade_;
+          ipastops = updateEnergy(pktraj,ipainters.back().end(),energy);
+          tstart = ipainters.back().end();
+        }
+        ipae_ = pktraj.energy(tstart);
+        if(! ipastops) {
+          // extend through tracker
+          extendZ(pktraj,axfield, axfield.zMin(), trackercyl.zmax(), tol);
+          // find intersections with tracker
+          trackercyl.intersect(pktraj,trackerinters,tstart,tstep);
+          //	cout << "ntrackerinters " << trackerinters.size() << endl;
+          // check that the particle reached the tracker
+          double speed = pktraj.velocity(pktraj.range().begin()).R();// assume constant speed
+          npieces_ = pktraj.pieces().size();
+          ntrackercells_ = tracker.nCells(speed, trackerinters);
+          //	cout << "ntrackercells " << ntrackercells_ << endl;
+          if(ntrackercells_ > minncells){
+            ntrackerarcs_ = trackerinters.size();
+            double trackerpath(0.0);
+            for (auto const& range : trackerinters) trackerpath += range.range()*speed;
+            double ke = cestate.energy() - cestate.mass();
+            trackerde_ = trackerEStar.dEIonization(ke)*tracker.density()*trackerpath/10.0;
+            tarde->Fill(-targetde_);
+            trkde->Fill(trackerde_);
+            trknc->Fill(ntrackercells_);
+            double targetpath(0.0);
+            tarpath->Fill(targetpath);
+            trkpath->Fill(trackerpath);
+            trktime->Fill(fmod(pktraj.range().mid(),1695.0));
+            // generate tracker hits and straw interactions TODO
+            // fit tracker hits TODO
+            // fill fit information TODO
+            //
+            if(draw){
+              plhel.push_back(new TPolyLine3D(npts));
+              plhel.back()->SetLineColor(icolor++%10);
+              double tstart = pktraj.range().begin();
+              double ts = pktraj.range().range()/(npts-1);
+              KinKal::VEC3 ppos;
+              for(unsigned ipt=0;ipt<npts;ipt++){
+                double t = tstart + ipt*ts;
+                ppos = pktraj.position3(t);
+                plhel.back()->SetPoint(ipt,ppos.X(),ppos.Y(),ppos.Z());
+              }
+            }
+            cetree_->Fill();
+          } // particle hits the tracker
+        } // particle stops in IPA
       } // particle stops in the target
       //	cout << "particle stops in target " << endl;
     } // particle exits the target going upstream
