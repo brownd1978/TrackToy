@@ -36,8 +36,7 @@ namespace TrackToy {
             throw std::invalid_argument(errmsg);
           }
           // then geometry
-        } else if (type_ == cylinder) {
-          std::cout << "line=" << line << std::endl;
+        } else if (type_ == cylindrical) {
           double radius, rhalf, zpos, zhalf;
           iss >> radius >> rhalf >> zpos >> zhalf;
           if(radius < 0.0 || rhalf < 0.0 || zhalf < 0.0)throw std::invalid_argument("Invalid CylindricalShell parameters");\
@@ -47,16 +46,20 @@ namespace TrackToy {
         }
       }
     }
+  }
+
+  void IPA::print(std::ostream& os ) const {
     switch (type_ ) {
       default:
-      case IPA::cylinder:
+      case IPA::cylindrical:
         std::cout << "Cylindrical IPA with radius " << cyl_.radius() << " thickness " << 2*cyl_.rhalf() << " Zmid " << cyl_.zpos() << " Length " << 2*cyl_.zhalf();
         break;
       case IPA::propeller:
         std::cout << "Propeller IPA";
         break;
     }
-    std::cout << " of material " << mat_->name() << " constructed from file " << fullfile << std::endl;
+    std::cout << " out of material " << mat_->name()  << std::endl;
   }
+
 }
 

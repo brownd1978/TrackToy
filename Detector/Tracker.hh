@@ -6,6 +6,7 @@
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include <string>
 #include <vector>
+#include <iostream>
 namespace TrackToy {
   class Tracker {
     public:
@@ -17,6 +18,7 @@ namespace TrackToy {
       // compute # of cells for a given trajectory
       double nCells(double speed, TimeRanges const& tranges) const;
       double density() const { return density_;} // gm/cm^3
+      void print(std::ostream& os) const;
     private:
       HollowCylinder cyl_; // geometric form of the tracker
       CellOrientation orientation_; // orientation of the cells

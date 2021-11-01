@@ -6,6 +6,7 @@
 #include <string>
 #include "KinKal/General/TimeRange.hh"
 #include "KinKal/General/Vectors.hh"
+#include "TrackToy/General/TrajUtilities.hh"
 #include <vector>
 #include <algorithm>
 namespace TrackToy {
@@ -23,7 +24,7 @@ namespace TrackToy {
       double volume() const { return 2.0*M_PI*zhalf_*(rmax_*rmax_ - rmin_*rmin_); } // mm^3
       // find intersections of a trajectory with this cylinder.  Return the time ranges in which the
       // trajectory is inside the physical volume
-      template<class KTRAJ> void intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const;
+      template<class PKTRAJ> void intersect(PKTRAJ const& pktraj, TimeRanges& tranges, double tstart, double tstep) const;
     private:
       double rmin_, rmax_, zpos_, zhalf_;
       bool isInside(KinKal::VEC3 const& pos) const {
@@ -32,27 +33,21 @@ namespace TrackToy {
       }
   };
 
-  template<class KTRAJ> void HollowCylinder::intersect(KTRAJ const& ktraj, TimeRanges& tranges, double tstep) const {
+  template<class PKTRAJ> void HollowCylinder::intersect(PKTRAJ const& pktraj, TimeRanges& tranges, double tstart, double tstep) const {
     tranges.clear();
-    // search for an intersection
-    double ttest = ktraj.range().begin();
-    auto pos = ktraj.position3(ttest);
-    if(pos.Z() < zmin() || pos.Z() > zmax()){
-// move to the edge
-      double tmin = std::max(ttest,ktraj.zTime(zmin()));
-      double tmax = std::max(ttest,ktraj.zTime(zmax()));
-      ttest = std::min(tmin,tmax);
-      pos = ktraj.position3(ttest);
-    }
+    // see if we are starting inside
+    double ttest = tstart;
+    auto pos = pktraj.position3(ttest);
     bool inside = isInside(pos);
-    bool oldinside;
+    bool oldinside = inside;
     bool crosses(false);
     //      cout << "particle enters at " << pos << endl;
     // if we start inside, setup the first range
     if(inside) tranges.push_back(KinKal::TimeRange(ttest,ttest));
-    while(pos.z() < zmax() && ttest < ktraj.range().end()){
-      ttest += tstep;
-      pos = ktraj.position3(ttest);
+    while(ttest < pktraj.range().end()){
+    // step
+      ttest = timeStep(pktraj,zmin(),zmax(),ttest,tstep);
+      pos = pktraj.position3(ttest);
       oldinside = inside;
       inside = isInside(pos);
       crosses = oldinside != inside;
@@ -69,8 +64,7 @@ namespace TrackToy {
       }
     }
     // finish the last range
-    if(inside)tranges.back().end() = ttest;
+    if(inside)tranges.back().end() = std::min(ttest,pktraj.range().end());
   }
 }
 #endif
-
