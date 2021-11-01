@@ -58,6 +58,11 @@ namespace TrackToy {
     return retval;
   }
 
+  void Target::print(std::ostream& os ) const {
+    std::cout << "Target of material " << material() << " density " << density()
+      << " with Z between " << cyl_.zmin() << " and " << cyl_.zmax() << " rmin " << cyl_.rmin() << " rmax " << cyl_.rmax() << std::endl;
+  }
+
   double Target::electronEnergyLoss(double ke, double pathlen) const {
     return estar_.dEIonization(ke)*density()*pathlen/10.0; // only ionization energy loss is relevant for thin material
     // note this corrects for density being in gm/cm^3 (estar table is relative to that)

@@ -7,9 +7,11 @@
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/EStar.hh"
+#include "KinKal/General/BFieldMap.hh"
 #include "KinKal/General/TimeRange.hh"
 #include <string>
 #include <vector>
+#include <iostream>
 
 namespace TrackToy {
   class Target {
@@ -23,9 +25,9 @@ namespace TrackToy {
       double electronEnergyLoss(double ke, double pathlen) const;
       double protonEnergyLoss(double ke, double pathlen) const; // TODO
       std::string material() const;
-      // extrapolate the trajectory through the target and update it for the energy loss on exit.  Return value
-      // is whether the particle stops in the target
-      template<class PKTRAJ> bool updateTrajectory(PKTRAJ& pktraj,TimeRanges& intersections) const;
+      // extend a trajectory through the target.  Return value specifies if the particle continues downsream (true) or stops in the target or exits the field upstream (false)
+      template<class PKTRAJ> bool extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj,TimeRanges& intersections) const;
+      void print(std::ostream& os) const;
     private:
       Material mat_;
       EStar estar_; // energystar table
@@ -33,22 +35,30 @@ namespace TrackToy {
       double density_;
   };
 
-  template<class PKTRAJ> bool Target::updateTrajectory(PKTRAJ& pktraj, TimeRanges& intersections) const {
+  template<class PKTRAJ> bool Target::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections) const {
     bool retval(false);
-    // first find the intersections.
-    double tstart = pktraj.range().begin();
-    static double tstep(0.01);
-    cyl_.intersect(pktraj,intersections,tstart,tstep);
-    if(intersections.size() > 0){
-      double energy = pktraj.energy(intersections.front().begin());
-      double speed = pktraj.speed(intersections.front().begin());
-      for (auto const& range : intersections) {
-	double pathlen = range.range()*speed;
-	// should check for particle type FIXME!
-	double de = electronEnergyLoss(energy-pktraj.mass(),pathlen);
-	energy -= de;
+    intersections.clear();
+    // compute the time tolerance based on the speed.  Require 1mm precision (good enough for target)
+    double ttol = 1.0/pktraj.speed(pktraj.range().begin());
+    // extend to the  of the target or exiting the BField (backwards)
+    double ztgt = extendZ(pktraj,bfield, bfield.zMin(), cyl_.zmax(), ttol);
+    //    cout << "Z target extend " << ztgt << endl;
+    if(ztgt > cyl_.zmin()){ // make sure we didn't exit the BField upstream
+      // first find the intersections.
+      double tstart = pktraj.range().begin();
+      static double tstep(0.01);
+      cyl_.intersect(pktraj,intersections,tstart,tstep);
+      if(intersections.size() > 0){
+        double energy = pktraj.energy(intersections.front().begin());
+        double speed = pktraj.speed(intersections.front().begin());
+        for (auto const& range : intersections) {
+          double pathlen = range.range()*speed;
+          // should check for particle type FIXME!
+          double de = electronEnergyLoss(energy-pktraj.mass(),pathlen);
+          energy -= de;
+        }
+        retval = updateEnergy(pktraj,intersections.back().end(),energy);
       }
-      retval = updateEnergy(pktraj,intersections.back().end(),energy);
     }
     return retval;
   }

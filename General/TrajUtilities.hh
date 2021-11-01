@@ -12,7 +12,7 @@
 
 namespace TrackToy {
   //  Update the state of a trajectory for a change in the energy.  If this energy is still physical, this will append a new
-  //  trajectory on a piecetraj at the point of the energy loss assignment and return false.  If not, it will terminate the trajectory and return true.
+  //  trajectory on a piecetraj at the point of the energy loss assignment and return true.  If not, it will terminate the trajectory and return false
   template<class KTRAJ> bool updateEnergy(KinKal::ParticleTrajectory<KTRAJ>& pktraj, double time, double newe) {
     auto const& ktraj = pktraj.nearestPiece(time);
     if(newe > pktraj.mass()) {
@@ -30,12 +30,12 @@ namespace TrackToy {
       // append this back, allowing removal
       //      std::cout << "2 appending " << range << " to range " << pktraj.range() << std::endl;
       pktraj.append(newtraj,true);
-      return false;
+      return true;
     } else {
     // terminate the particle here
       KinKal::TimeRange range(pktraj.range().begin(),time);
       pktraj.setRange(range, true);
-      return true;
+      return false;
     }
   }
 

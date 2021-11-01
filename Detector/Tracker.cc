@@ -40,6 +40,15 @@ namespace TrackToy {
     }
     return retval;
   }
+
+  void Tracker::print(std::ostream& os ) const {
+    std::cout << "Tracker between " << cyl_.zmin() << " and " << cyl_.zmax() << " rmin " << cyl_.rmin() << " rmax " << cyl_.rmax()
+    << " material density " << density_ << " with " << ncells_ << " cells oriented ";
+    if(orientation_ == radial)
+      std::cout << " radially " << std::endl;
+    else
+      std::cout << " axially " << std::endl;
+  }
 }
 
 

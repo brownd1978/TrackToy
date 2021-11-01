@@ -141,21 +141,19 @@ int main(int argc, char **argv) {
   // setup BField
   FileFinder filefinder;
   std::string fullfile = filefinder.fullFile(bfile);
+  cout << "Building BField from file " << fullfile << endl;
   AxialBFieldMap axfield(fullfile);
-  cout << "axial field from file " << fullfile << " is between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
-    << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;
+  axfield.print(cout);
   // setup target
   Target target(targetfile);
-  auto const& tgtcyl = target.cylinder();
-
-  cout << "target of material " << target.material() << " density " << target.density() << " with Z between " << tgtcyl.zmin() << " and " << tgtcyl.zmax() << " rmin " << tgtcyl.rmin() << " rmax " << tgtcyl.rmax() << endl;
+  target.print(cout);
   // setup ipa
   IPA ipa(matdb_,ipafile);
+  ipa.print(cout);
   // setup tracker
   Tracker tracker(trackerfile);
+  tracker.print(cout);
   EStar trackerEStar(efile_my);
-  auto const& trackercyl = tracker.cylinder();
-  cout << "tracker between " << trackercyl.zmin() << " and " << trackercyl.zmax() << " rmin " << trackercyl.rmin() << " rmax " << trackercyl.rmax() << endl;
   // randoms
   TRandom3 tr_; // random number generator
   // setup spectrum
@@ -164,16 +162,10 @@ int main(int argc, char **argv) {
 
   // histograms
   TFile cetracksfile("CeTracks.root","RECREATE");
-  TH1F* tarpath = new TH1F("tarpath","Target path;Path (mm)",100,10,1000.0);
-  TH1F* trkpath = new TH1F("trkpath","Tracker path;Path (mm)",100,10,5000.0);
-  TH1F* trktime = new TH1F("trktime","Track time;Time (ns)",100,0,2000.0);
-  TH1F* trkde = new TH1F("trkde","Tracker <dE>;<dE> (MeV)",100,0.001,2.0);
-  TH1F* tarde = new TH1F("tarde","Target <dE>;<dE> (MeV)",100,0.001,5.0);
+  TH1F* ipade = new TH1F("ipde","IPA dE",100,0.0,0.5);
+  TH1F* tarde = new TH1F("tarde","Target dE;dE (MeV)",100,0.001,5.0);
+  TH1F* trkde = new TH1F("trkde","Tracker dE;dE (MeV)",100,0.001,2.0);
   TH1F* trknc = new TH1F("trknc","Tracker N Cells;N Cells",100,0.001,100.0);
-  TH1F* nipa = new TH1F("nipa","N IPA Intersections",50,-0.5,49.5);
-  TH1F* ipade = new TH1F("ipde","IPA Intersection mean dE",100,0.0,0.3);
-  TH1F* ipader = new TH1F("ipder","IPA Intersection sample dE",100,0.0,0.3);
-  TH1F* ipades = new TH1F("ipdes","IPA Intersections Sum dE",100,0.0,0.5);
   if(ttree){
     cetree_ = new TTree("ce","ce");
     cetree_->Branch("itrk",&itrk_,"itrk/I");
@@ -222,106 +214,65 @@ int main(int argc, char **argv) {
     VEC4 const& pos4 = *mustoppos;
     cepos_ = pos4.Vect();
     cet_ = tdecay+pos4.T(); // add decay time to stopping time
-    //    cout << "Mustop " << pos4 << endl;
     double mom = sqrt(cee_*cee_ - emass*emass);
     cemom_ = VEC3(mom*sint*cos(phi),mom*sint*sin(phi),mom*cost);
     ParticleState cestate(cepos_,cemom_,cet_,emass,-1);
-    //    cout << "Initial Ce position" << cestate.position3() << " mom " << cestate.momentum3() << " time " << cestate.time() << endl;
     TimeRange range(cestate.time(),cestate.time()+1000.0); // replace hard-coded limit with a physical estimate FIXME
     auto bstart = axfield.fieldVect(cestate.position3());
-    //      cout << "bstart " << bstart << endl;
     KTRAJ lhelix(cestate,bstart,range);
     //    cout << "Initial trajectory " << lhelix << endl;
     // initialize piecetraj
     PKTRAJ pktraj(lhelix);
-    // extend to the end of the target or exiting the BField (backwards)
-    double ztgt = extendZ(pktraj,axfield, axfield.zMin(), tgtcyl.zmax(), tol);
-    //    cout << "Z target extend " << ztgt << endl;
-    if(ztgt > tgtcyl.zmin()){
-      TimeRanges targetinters, ipainters, trackerinters;
-      // compute target energy loss, and update the trajectory accordingly
-      bool tgtstops = target.updateTrajectory(pktraj,targetinters);
+    TimeRanges targetinters, ipainters, trackerinters;
+    // extend through the target
+    if(target.extendTrajectory(axfield,pktraj,targetinters)){
       targete_ = pktraj.energy(pktraj.range().end());
       targetde_ = targete_ - cee_;
-      //      cout << "ntargetinters " << targetinters.size() << endl;
-      if(!tgtstops){
-        ntarget_ = targetinters.size();
-        // extend through the IPA
-        extendZ(pktraj,axfield, axfield.zMin(), ipa.cyl().zmax(), tol);
-        // find IPA intersections
-        double tstart = pktraj.range().begin();
-        if(targetinters.size() > 0) tstart = targetinters.back().end();
-        // extend through ipa
-        extendZ(pktraj,axfield, axfield.zMin(), ipa.cyl().zmax(), tol);
-        // find intersections with ipa
-        ipa.cyl().intersect(pktraj,ipainters,tstart,tstep);
+      ntarget_ = targetinters.size();
+      // extend through the IPA
+      if(ipa.extendTrajectory(axfield,pktraj,ipainters)){
         nipa_ = ipainters.size();
-        nipa->Fill(nipa_);
-        ipade_ = 0.0;
-        for(auto const& ipainter : ipainters) {
-          auto eloss = ipa.energyLoss(pktraj,ipainter);
-          double de = eloss.mean();
-          ipade->Fill(-de);
-          double der = eloss.sample(tr_.Uniform(0.0,1.0)); // currently broken, FIXME
-          ipader->Fill(-der);
-          //        ipade_ += der;
-          ipade_ += de;
-        }
-        ipades->Fill(-ipade_);
-        bool ipastops(false);
-        if(ipainters.size() > 0){
-          double energy = pktraj.energy(tstart) + ipade_;
-          ipastops = updateEnergy(pktraj,ipainters.back().end(),energy);
-          tstart = ipainters.back().end();
-        }
-        ipae_ = pktraj.energy(tstart);
-        if(! ipastops) {
-          // extend through tracker
-          extendZ(pktraj,axfield, axfield.zMin(), trackercyl.zmax(), tol);
-          // find intersections with tracker
-          trackercyl.intersect(pktraj,trackerinters,tstart,tstep);
-          //	cout << "ntrackerinters " << trackerinters.size() << endl;
-          // check that the particle reached the tracker
-          double speed = pktraj.velocity(pktraj.range().begin()).R();// assume constant speed
-          npieces_ = pktraj.pieces().size();
-          ntrackercells_ = tracker.nCells(speed, trackerinters);
-          //	cout << "ntrackercells " << ntrackercells_ << endl;
-          if(ntrackercells_ > minncells){
-            ntrackerarcs_ = trackerinters.size();
-            double trackerpath(0.0);
-            for (auto const& range : trackerinters) trackerpath += range.range()*speed;
-            double ke = cestate.energy() - cestate.mass();
-            trackerde_ = trackerEStar.dEIonization(ke)*tracker.density()*trackerpath/10.0;
-            tarde->Fill(-targetde_);
-            trkde->Fill(trackerde_);
-            trknc->Fill(ntrackercells_);
-            double targetpath(0.0);
-            tarpath->Fill(targetpath);
-            trkpath->Fill(trackerpath);
-            trktime->Fill(fmod(pktraj.range().mid(),1695.0));
-            // generate tracker hits and straw interactions TODO
-            // fit tracker hits TODO
-            // fill fit information TODO
-            //
-            if(draw){
-              plhel.push_back(new TPolyLine3D(npts));
-              plhel.back()->SetLineColor(icolor++%10);
-              double tstart = pktraj.range().begin();
-              double ts = pktraj.range().range()/(npts-1);
-              KinKal::VEC3 ppos;
-              for(unsigned ipt=0;ipt<npts;ipt++){
-                double t = tstart + ipt*ts;
-                ppos = pktraj.position3(t);
-                plhel.back()->SetPoint(ipt,ppos.X(),ppos.Y(),ppos.Z());
-              }
+        ipae_ = pktraj.energy(pktraj.range().end());
+        ipade_ = ipae_ - targete_;
+        // extend through tracker
+        double tstart = pktraj.back().range().begin();
+        extendZ(pktraj,axfield, axfield.zMin(), tracker.cylinder().zmax(), tol);
+        // find intersections with tracker
+        tracker.cylinder().intersect(pktraj,trackerinters,tstart,tstep);
+        // check that the particle reached the tracker
+        double speed = pktraj.velocity(pktraj.range().begin()).R();// assume constant speed
+        npieces_ = pktraj.pieces().size();
+        ntrackercells_ = tracker.nCells(speed, trackerinters);
+        if(ntrackercells_ > minncells){
+          ntrackerarcs_ = trackerinters.size();
+          double trackerpath(0.0);
+          for (auto const& range : trackerinters) trackerpath += range.range()*speed;
+          double ke = cestate.energy() - cestate.mass();
+          trackerde_ = trackerEStar.dEIonization(ke)*tracker.density()*trackerpath/10.0;
+          tarde->Fill(-targetde_);
+          ipade->Fill(ipade_);
+          trkde->Fill(trackerde_);
+          trknc->Fill(ntrackercells_);
+          // generate tracker hits and straw interactions TODO
+          // fit tracker hits TODO
+          // fill fit information TODO
+          //
+          if(draw){
+            plhel.push_back(new TPolyLine3D(npts));
+            plhel.back()->SetLineColor(icolor++%10);
+            double tstart = pktraj.range().begin();
+            double ts = pktraj.range().range()/(npts-1);
+            KinKal::VEC3 ppos;
+            for(unsigned ipt=0;ipt<npts;ipt++){
+              double t = tstart + ipt*ts;
+              ppos = pktraj.position3(t);
+              plhel.back()->SetPoint(ipt,ppos.X(),ppos.Y(),ppos.Z());
             }
-            cetree_->Fill();
-          } // particle hits the tracker
-        } // particle stops in IPA
-      } // particle stops in the target
-      //	cout << "particle stops in target " << endl;
-    } // particle exits the target going upstream
-    //      cout << "particle exits bfield " << endl;
+          }
+          cetree_->Fill();
+        } // particle hits the tracker
+      } // particle stops in IPA
+    } // particle exits the target going downstream
   }
   // Draw target
   TCanvas* ctrkcan = new TCanvas("CeTrack");
@@ -329,7 +280,7 @@ int main(int argc, char **argv) {
   ctrkcan->cd(1);
   tarde->Draw();
   ctrkcan->cd(2);
-  ipades->Draw();
+  ipade->Draw();
   ctrkcan->cd(3);
   trkde->Draw();
   ctrkcan->cd(4);
@@ -339,12 +290,12 @@ int main(int argc, char **argv) {
 
   if(draw){
     TCanvas* cetcan = new TCanvas("CeTracks");
-    TTUBE* ttarget= new TTUBE("ttarget","ttarget","void",tgtcyl.rmin(),tgtcyl.rmax(),tgtcyl.zhalf());
+    TTUBE* ttarget= new TTUBE("ttarget","ttarget","void",target.cylinder().rmin(),target.cylinder().rmax(),target.cylinder().zhalf());
     ttarget->SetLineColor(kBlack);
     ttarget->SetLineWidth(4);
     ttarget->SetFillColorAlpha(kBlack, 0.5);
     ttarget->Draw();
-    TTUBE* ttracker= new TTUBE("ttracker","ttracker","void",trackercyl.rmin(),trackercyl.rmax(),trackercyl.zhalf());
+    TTUBE* ttracker= new TTUBE("ttracker","ttracker","void",tracker.cylinder().rmin(),tracker.cylinder().rmax(),tracker.cylinder().zhalf());
     ttracker->SetLineColor(kRed);
     ttracker->SetLineWidth(4);
     ttracker->SetFillColorAlpha(kRed, 0.5);
@@ -372,7 +323,7 @@ int main(int argc, char **argv) {
     rulers->GetYaxis()->SetLabelColor(kCyan);
     rulers->GetZaxis()->SetAxisColor(kOrange);
     rulers->GetZaxis()->SetLabelColor(kOrange);
-    rulers->SetAxisRange(axfield.zMin(),trackercyl.zmax(),"Z");
+    rulers->SetAxisRange(axfield.zMin(),tracker.cylinder().zmax(),"Z");
     rulers->Draw();
     cetcan->Write();
   }
