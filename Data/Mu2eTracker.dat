@@ -1,5 +1,7 @@
 #
 #  Parameters describing the Mu2e tracker
-# rmin rmax zpos zhalf density (gm/cm^3)
-# Ncells cellorientation (0=radial, 1=axial), cell area, active density, gain
-350.0 700.0 0.0 1500.0 1.80e-3 20736 0 3000.0 6.93e-5 1.0
+# rmin rmax zpos zhalf
+350.0 700.0 0.0 1500.0
+# Cellorientation (0=azimuthal, 1=axial), Ncells, cell radius, cell length, wall thickness, wire radius
+0 20736 2.5 800.0 0.015 0.0125
+

@@ -151,7 +151,7 @@ int main(int argc, char **argv) {
   IPA ipa(matdb_,ipafile);
   ipa.print(cout);
   // setup tracker
-  Tracker tracker(trackerfile);
+  Tracker tracker(matdb_,trackerfile);
   tracker.print(cout);
   EStar trackerEStar(efile_my);
   // randoms
@@ -235,20 +235,18 @@ int main(int argc, char **argv) {
         ipae_ = pktraj.energy(pktraj.range().end());
         ipade_ = ipae_ - targete_;
         // extend through tracker
-        double tstart = pktraj.back().range().begin();
-        extendZ(pktraj,axfield, axfield.zMin(), tracker.cylinder().zmax(), tol);
-        // find intersections with tracker
-        tracker.cylinder().intersect(pktraj,trackerinters,tstart,tstep);
-        // check that the particle reached the tracker
-        double speed = pktraj.velocity(pktraj.range().begin()).R();// assume constant speed
-        npieces_ = pktraj.pieces().size();
-        ntrackercells_ = tracker.nCells(speed, trackerinters);
+        std::vector<double> htimes;
+        tracker.simulateHits(axfield,pktraj,trackerinters,htimes);
+        double trackerpath(0.0);
+        double speed = pktraj.speed(pktraj.range().end());
+        for (auto const& range : trackerinters){
+          trackerpath += speed*range.range();
+        }
+        ntrackercells_ = htimes.size();
         if(ntrackercells_ > minncells){
           ntrackerarcs_ = trackerinters.size();
-          double trackerpath(0.0);
-          for (auto const& range : trackerinters) trackerpath += range.range()*speed;
           double ke = cestate.energy() - cestate.mass();
-          trackerde_ = trackerEStar.dEIonization(ke)*tracker.density()*trackerpath/10.0;
+          trackerde_ = trackerEStar.dEIonization(ke)*tracker.density()*trackerpath/10.0; // unit conversion
           tarde->Fill(-targetde_);
           ipade->Fill(ipade_);
           trkde->Fill(trackerde_);
@@ -274,7 +272,7 @@ int main(int argc, char **argv) {
       } // particle stops in IPA
     } // particle exits the target going downstream
   }
-  // Draw target
+  // Canvas of basic parameters
   TCanvas* ctrkcan = new TCanvas("CeTrack");
   ctrkcan->Divide(2,2);
   ctrkcan->cd(1);

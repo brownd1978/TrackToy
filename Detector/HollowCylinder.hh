@@ -21,7 +21,9 @@ namespace TrackToy {
       double zmax() const { return zpos_ + zhalf_;}
       double zpos() const { return zpos_;}
       double zhalf() const { return zhalf_;}
-      double volume() const { return 2.0*M_PI*zhalf_*(rmax_*rmax_ - rmin_*rmin_); } // mm^3
+      double length() const { return 2.0*zhalf_; }
+      double area() const { return M_PI*(rmax_*rmax_ - rmin_*rmin_); }
+      double volume() const { return length()*area(); } // mm^3
       // find intersections of a trajectory with this cylinder.  Return the time ranges in which the
       // trajectory is inside the physical volume
       template<class PKTRAJ> void intersect(PKTRAJ const& pktraj, TimeRanges& tranges, double tstart, double tstep) const;
