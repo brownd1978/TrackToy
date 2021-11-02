@@ -11,7 +11,8 @@
 
 namespace TrackToy {
   Tracker::Tracker(MatEnv::MatDBInfo const& matdbinfo,std::string const& tgtfile):
-    ncells_(0), cellDensity_(-1.0), smat_(0)
+    ncells_(0), cellDensity_(-1.0), density_(-1.0), smat_(0),
+    vdrift_(-1.0), vprop_(-1.0), sigt_(-1.0), sigl_(-1.0)
   {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(tgtfile);
@@ -44,19 +45,25 @@ namespace TrackToy {
           double cmass = smat_->wallMaterial().density()*2.0*M_PI*rcell*lcell*wthick
             + smat_->gasMaterial().density()*M_PI*rcell*rcell*lcell
             + smat_->wireMaterial().density()*M_PI*rwire*rwire*lcell;
-          density_ = 1000.0*cmass*ncells_/cyl_.volume(); // convert to gm/cm^3
+          density_ = cmass*ncells_/cyl_.volume();
+        } else if(vdrift_ < 0.0){
+          // hit properties
+          iss >> vdrift_ >> vprop_ >> sigt_ >> sigl_;
         }
       }
     }
   }
 
   void Tracker::print(std::ostream& os ) const {
-    std::cout << "Tracker between " << cyl_.zmin() << " and " << cyl_.zmax() << " rmin " << cyl_.rmin() << " rmax " << cyl_.rmax()
-    << " material density (gm/cm^3)" << density_ << " cell density (cells/mm) " << cellDensity_ << " with " << ncells_ << " cells oriented ";
+    std::cout << "Tracker Z between " << zMin() << " and " << zMax() << " Rho between " << rMin() << " and " << rMax()
+      << " average material density (gm/mm^3)" << density_ << std::endl;
+    std::cout << "Cell density (cells/mm) " << cellDensity_ << " with " << ncells_ << " cells oriented ";
     if(orientation_ == azimuthal)
       std::cout << " azimuthally " << std::endl;
     else
       std::cout << " axially " << std::endl;
+    std::cout << "Cell radius " << cellRadius() << " wall thickness " << smat_->wallThickness() << std::endl;
+    std::cout << "Vdrift " << vdrift_ << " Vprop " << vprop_ << " transverse resolution " << sigt_ << " longitudinal resolution " << sigl_ << std::endl;
   }
 }
 

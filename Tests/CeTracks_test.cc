@@ -8,6 +8,7 @@
 #include "KinKal/MatEnv/SimpleFileFinder.hh"
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/MatEnv/DetMaterial.hh"
+#include "KinKal/Fit/Track.hh"
 #include "TrackToy/General/FileFinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/HollowCylinder.hh"
@@ -38,6 +39,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <string>
 
@@ -53,10 +55,15 @@ void print_usage() {
 int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
+  using KKTRK = Track<KTRAJ>;
+  using KKHIT = HitConstraint<KTRAJ>;
+  using KKMAT = Material<KTRAJ>;
+  using KKBF = BFieldEffect<KTRAJ>;
   int ntrks(-1);
   string bfile("Data/DSMapDump.dat"), mfile("MuStops.root"), targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
   string ipafile("Data/Mu2e_IPA.dat");
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
+  string sfile("Data/Schedule.txt"); // fit schedule
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
   double tstep(0.01), tol(1e-3);
   double emass(0.511); //electron
@@ -66,12 +73,19 @@ int main(int argc, char **argv) {
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
   TTree* cetree_;
-  float cee_, targetde_, ipade_, trackerde_;
-  float targete_, ipae_;
+  float targetde_, ipade_, trackerde_;
+  float cee_, targete_, ipae_, trackere_;
   VEC3 cepos_, cemom_;
   float cet_;
   int npieces_, ntarget_, nipa_, ntrackerarcs_, ntrackercells_;
-  int itrk_(0);
+  int itrk_(0), kkstatus_, kkndof_, kknbf_, kknmat_, kknhit_, kkniter_;
+  float kkchisq_, kkprob_;
+  VEC3 kkentmom_, kkmidmom_, kkextmom_;
+  // fit parameters
+  double dwt(1.0e6);
+  unsigned maxniter(10);
+  KinKal::Config::BFCorr bfcorr(KinKal::Config::variable);
+  KinKal::Config::printLevel detail(KinKal::Config::minimal);
 
   static struct option long_options[] = {
     {"mustopsfile",     required_argument, 0, 'm' },
@@ -137,13 +151,13 @@ int main(int argc, char **argv) {
   // build the materials database
   MatEnv::SimpleFileFinder ttfinder(std::string("TRACKTOY_SOURCE_DIR"),std::string("/Data/"));
   cout << "Using Materials file " << ttfinder.matMtrDictionaryFileName() << endl;
-  MatEnv::MatDBInfo matdb_(ttfinder,MatEnv::DetMaterial::mpv); // use most probable value definition of eloss
+  MatEnv::MatDBInfo matdb_(ttfinder,MatEnv::DetMaterial::moyalmean);
   // setup BField
   FileFinder filefinder;
   std::string fullfile = filefinder.fullFile(bfile);
   cout << "Building BField from file " << fullfile << endl;
-  AxialBFieldMap axfield(fullfile);
-  axfield.print(cout);
+  AxialBFieldMap bfield(fullfile);
+  bfield.print(cout);
   // setup target
   Target target(targetfile);
   target.print(cout);
@@ -154,6 +168,31 @@ int main(int argc, char **argv) {
   Tracker tracker(matdb_,trackerfile);
   tracker.print(cout);
   EStar trackerEStar(efile_my);
+  // setup fit configuration
+  KinKal::Config config;
+  config.dwt_ = dwt;
+  config.maxniter_ = maxniter;
+  config.bfcorr_ = bfcorr;
+  config.tol_ = tol;
+  config.plevel_ = detail;
+  // read the schedule from the file
+  fullfile = filefinder.fullFile(sfile);
+  std::ifstream ifs (fullfile, std::ifstream::in);
+  if ( (ifs.rdstate() & std::ifstream::failbit ) != 0 ){
+    std::cerr << "Error opening " << fullfile << std::endl;
+    return -1;
+  }
+  string line;
+  unsigned nmiter(0);
+  while (getline(ifs,line)){
+    if(strncmp(line.c_str(),"#",1)!=0){
+      istringstream ss(line);
+      KinKal::MetaIterConfig mconfig(ss);
+      mconfig.miter_ = nmiter++;
+      config.schedule_.push_back(mconfig);
+    }
+  }
+  cout << config << endl;
   // randoms
   TRandom3 tr_; // random number generator
   // setup spectrum
@@ -180,6 +219,7 @@ int main(int argc, char **argv) {
     cetree_->Branch("ipade",&ipade_,"ipade/F");
     cetree_->Branch("ntrackerarcs",&ntrackerarcs_,"ntrackerarcs/I");
     cetree_->Branch("ntrackercells",&ntrackercells_,"ntrackercells/I");
+    cetree_->Branch("trackere",&trackere_,"trackere/F");
     cetree_->Branch("trackerde",&trackerde_,"trackerde/F");
     cetree_->Branch("targete",&targete_,"targete/F");
     cetree_->Branch("ipae",&ipae_,"ipae/F");
@@ -189,7 +229,7 @@ int main(int argc, char **argv) {
   // loop over stops
   int icolor(kBlue);
   if(ntrks<0)ntrks = mtree->GetEntries();
-  while (itrk_ < ntrks) { // need to loop over stops if ntrks > nstops TODO
+  while (itrk_ < ntrks) {
     ++itrk_;
     if(!reader.Next()){
       reader.Restart();
@@ -202,8 +242,12 @@ int main(int argc, char **argv) {
     // reset tree variables
     targetde_ = ipade_ = trackerde_ = 0.0;
     targete_ = ipae_ = 0.0;
-    nipa_ = ntrackerarcs_ = ntrackercells_ = 0;
-    // generate a random CeEndpoint momentum FIXME!
+    nipa_ = ntrackerarcs_ = ntrackercells_ = -1;
+    kkndof_ = kknbf_ = kknmat_ = kknhit_ = kkniter_ = -1;
+    kkchisq_ = kkprob_ = -1.0;
+    kkentmom_ = kkmidmom_ = kkextmom_ = VEC3();
+
+    // generate a random CeEndpoint momentum; for now, use the endpoint energy, could use spectrum TODO
     cee_ = cespect.params().EEnd_;
     // generate a random muon decay time; this should come from the target FIXME
     double tdecay = tr_.Exp(lifetime);
@@ -218,42 +262,73 @@ int main(int argc, char **argv) {
     cemom_ = VEC3(mom*sint*cos(phi),mom*sint*sin(phi),mom*cost);
     ParticleState cestate(cepos_,cemom_,cet_,emass,-1);
     TimeRange range(cestate.time(),cestate.time()+1000.0); // replace hard-coded limit with a physical estimate FIXME
-    auto bstart = axfield.fieldVect(cestate.position3());
+    auto bstart = bfield.fieldVect(cestate.position3());
     KTRAJ lhelix(cestate,bstart,range);
     //    cout << "Initial trajectory " << lhelix << endl;
     // initialize piecetraj
     PKTRAJ pktraj(lhelix);
     TimeRanges targetinters, ipainters, trackerinters;
     // extend through the target
-    if(target.extendTrajectory(axfield,pktraj,targetinters)){
+    if(target.extendTrajectory(bfield,pktraj,targetinters)){
       targete_ = pktraj.energy(pktraj.range().end());
       targetde_ = targete_ - cee_;
       ntarget_ = targetinters.size();
       // extend through the IPA
-      if(ipa.extendTrajectory(axfield,pktraj,ipainters)){
+      if(ipa.extendTrajectory(bfield,pktraj,ipainters)){
         nipa_ = ipainters.size();
         ipae_ = pktraj.energy(pktraj.range().end());
         ipade_ = ipae_ - targete_;
-        // extend through tracker
+        // extend through tracker, and create the material xings and hits
         std::vector<double> htimes;
-        tracker.simulateHits(axfield,pktraj,trackerinters,htimes);
+        std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>> hits;
+        std::vector<std::shared_ptr<KinKal::ElementXing<KTRAJ>>> xings;
         double trackerpath(0.0);
         double speed = pktraj.speed(pktraj.range().end());
-        for (auto const& range : trackerinters){
-          trackerpath += speed*range.range();
-        }
+        tracker.simulateHits(bfield,pktraj,hits,xings,trackerinters,htimes);
         ntrackercells_ = htimes.size();
+        for(auto const& inter : trackerinters) { trackerpath += speed*inter.range(); }
         if(ntrackercells_ > minncells){
           ntrackerarcs_ = trackerinters.size();
           double ke = cestate.energy() - cestate.mass();
-          trackerde_ = trackerEStar.dEIonization(ke)*tracker.density()*trackerpath/10.0; // unit conversion
-          tarde->Fill(-targetde_);
+          trackerde_ = -100*trackerEStar.dEIonization(ke)*tracker.density()*trackerpath; // unit conversion
+          trackere_ = pktraj.energy(pktraj.range().end());
+          tarde->Fill(targetde_);
           ipade->Fill(ipade_);
           trkde->Fill(trackerde_);
           trknc->Fill(ntrackercells_);
-          // generate tracker hits and straw interactions TODO
-          // fit tracker hits TODO
-          // fill fit information TODO
+          // reconstruct track from hits and material info
+          auto seedtraj = pktraj.nearestPiece(0.5*(htimes.front()+htimes.back()));
+          KKTRK kktrk(config,bfield,seedtraj,hits,xings);
+          // fill fit information
+          auto const& fstat = kktrk.fitStatus();
+          kkstatus_ = fstat.status_;
+          kkchisq_ = fstat.chisq_.chisq();
+          kkprob_ = fstat.chisq_.probability();
+          kkndof_ = fstat.chisq_.nDOF();
+          kknbf_ = 0; kknhit_ = 0; kknmat_ = 0;
+          for(auto const& eff: kktrk.effects()) {
+            const KKHIT* kkhit = dynamic_cast<const KKHIT*>(eff.get());
+            const KKBF* kkbf = dynamic_cast<const KKBF*>(eff.get());
+            const KKMAT* kkmat = dynamic_cast<const KKMAT*>(eff.get());
+            if(kkhit != 0){
+              kknhit_++;
+            } else if(kkmat != 0){
+              kknmat_++;
+            } else if(kkbf != 0){
+              kknbf_++;
+            }
+          }
+          if(fstat.usable()){
+            auto const& fptraj = kktrk.fitTraj();
+            auto entstate = fptraj.stateEstimate(fptraj.zTime(tracker.zMin()));
+            auto midstate = fptraj.stateEstimate(fptraj.zTime(0.0));
+            auto extstate = fptraj.stateEstimate(fptraj.zTime(tracker.zMax()));
+            kkentmom_ = entstate.momentum3();
+            kkmidmom_ = midstate.momentum3();
+            kkextmom_ = extstate.momentum3();
+          }
+          cetree_->Fill();
+
           //
           if(draw){
             plhel.push_back(new TPolyLine3D(npts));
@@ -267,7 +342,6 @@ int main(int argc, char **argv) {
               plhel.back()->SetPoint(ipt,ppos.X(),ppos.Y(),ppos.Z());
             }
           }
-          cetree_->Fill();
         } // particle hits the tracker
       } // particle stops in IPA
     } // particle exits the target going downstream
@@ -321,7 +395,7 @@ int main(int argc, char **argv) {
     rulers->GetYaxis()->SetLabelColor(kCyan);
     rulers->GetZaxis()->SetAxisColor(kOrange);
     rulers->GetZaxis()->SetLabelColor(kOrange);
-    rulers->SetAxisRange(axfield.zMin(),tracker.cylinder().zmax(),"Z");
+    rulers->SetAxisRange(bfield.zMin(),tracker.cylinder().zmax(),"Z");
     rulers->Draw();
     cetcan->Write();
   }
