@@ -39,12 +39,12 @@ namespace TrackToy {
     }
   }
 
-  // extend a trajector to the given range for the given BField to the given z range
-  template<class KTRAJ> double extendZ(KinKal::ParticleTrajectory<KTRAJ>& pktraj, KinKal::BFieldMap const& bfield, double zmin, double zmax,double tol) {
+  // extend a trajectory forwards (in z) to the given z value for the given BField to the given z value
+  template<class KTRAJ> bool extendZ(KinKal::ParticleTrajectory<KTRAJ>& pktraj, KinKal::BFieldMap const& bfield, double zmax,double tol) {
     double tstart = pktraj.pieces().back().range().begin();
     auto pos = pktraj.position3(tstart);
     KinKal::TimeRange range(tstart, pktraj.range().end());
-    while(pos.Z() < zmax && pos.Z() > zmin){
+    while(pos.Z() < zmax && pos.Z() > bfield.zMin() && pos.Z() < bfield.zMax() && range.begin() < range.end() ){
       range.begin() = bfield.rangeInTolerance(pktraj.back(),range.begin(),tol);
       if(range.begin() < range.end()){
         // Predict new position and momentum at this end, making linear correction for BField effects
@@ -56,11 +56,10 @@ namespace TrackToy {
         pktraj.append(endtraj);
         //        cout << "appended helix at point " << pos << " time " << range.begin() << endl;
       } else {
-        //        cout << "ranged out " << endl;
-        break;
+        pos = pktraj.position3(range.end());
       }
     }
-    return pos.Z();
+    return pos.Z() >= zmax;
   }
 
   template <class KTRAJ> void extendTraj(KinKal::BFieldMap const& bfield, KinKal::ParticleTrajectory<KTRAJ>& pktraj,double extime,double tol) {
@@ -94,18 +93,20 @@ namespace TrackToy {
     } else {
       // step through the pieces till we are going in the right direction
       auto vel = pktraj.velocity(ttest);
-      while ( (pos.Z()-zpos)*vel.z() > 0.0 && ttest < pktraj.range().end() ){
+      while ( (zpos -pos.Z())*vel.z() < 0.0 && ttest < pktraj.range().end() ){
         auto const& piece = pktraj.nearestPiece(ttest);
         ttest = piece.range().end() + tstep;
         pos = pktraj.position3(ttest);
         vel = pktraj.velocity(ttest);
       }
       // step through the pieces till we're in the right z range
+
       while( ttest < pktraj.range().end() &&
           ((vel.Z() > 0.0 && pos.Z() < zmin) ||
            (vel.Z() < 0.0 && pos.Z() > zmax)) ){
         auto const& piece = pktraj.nearestPiece(ttest);
-        ttest = piece.range().end() + tstep;
+        ttest = vel.Z() > 0.0 ? piece.ztime(zmin) : piece.ztime(zmax);
+        ttest += tstep;
         pos = pktraj.position3(ttest);
       }
     }

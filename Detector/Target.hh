@@ -41,9 +41,9 @@ namespace TrackToy {
     // compute the time tolerance based on the speed.  Require 1mm precision (good enough for target)
     double ttol = 1.0/pktraj.speed(pktraj.range().begin());
     // extend to the  of the target or exiting the BField (backwards)
-    double ztgt = extendZ(pktraj,bfield, bfield.zMin(), cyl_.zmax(), ttol);
+    retval = extendZ(pktraj,bfield, cyl_.zmax(), ttol);
     //    cout << "Z target extend " << ztgt << endl;
-    if(ztgt > cyl_.zmin()){ // make sure we didn't exit the BField upstream
+    if(retval){ // make sure we didn't exit the BField upstream
       // first find the intersections.
       double tstart = pktraj.range().begin();
       static double tstep(0.01);

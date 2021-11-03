@@ -7,6 +7,7 @@
 #include "KinKal/MatEnv/DetMaterial.hh"
 #include "KinKal/General/TimeRange.hh"
 #include "TrackToy/General/Moyal.hh"
+#include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/CylindricalShell.hh"
 namespace TrackToy {
   class IPA {
@@ -43,40 +44,15 @@ namespace TrackToy {
     intersections.clear();
     // compute the time tolerance based on the speed.  Require 1mm precision (good enough for IPA
     double ttol = 1.0/pktraj.speed(pktraj.range().begin());
-
-//
-//      if(targetinters.size() > 0) tstart = targetinters.back().end();
-//      // extend through ipa
-//      extendZ(pktraj,axfield, axfield.zMin(), ipa.cylinder().zmax(), tol);
-//      // find intersections with ipa
-//      ipa.cylinder().intersect(pktraj,ipainters,tstart,tstep);
-//      nipa_ = ipainters.size();
-//      nipa->Fill(nipa_);
-//      ipade_ = 0.0;
-//      for(auto const& ipainter : ipainters) {
-//        auto eloss = ipa.energyLoss(pktraj,ipainter);
-//        double de = eloss.mean();
-//        ipade->Fill(-de);
-//        double der = eloss.sample(tr_.Uniform(0.0,1.0)); // currently broken, FIXME
-//        ipader->Fill(-der);
-//        //        ipade_ += der;
-//        ipade_ += de;
-//      }
-//      ipades->Fill(-ipade_);
-//      bool ipacont(true);
-//      if(ipainters.size() > 0){
-//        double energy = pktraj.energy(tstart) + ipade_;
-//        ipacont = updateEnergy(pktraj,ipainters.back().end(),energy);
-//        tstart = ipainters.back().end();
-//      }
-
-// record the end of the previous extension; this is where new extensions start
+    // record the end of the previous extension; this is where new extensions start
     double tstart = pktraj.back().range().begin();
     double energy = pktraj.energy(tstart);
     // extend through the IPA or exiting the BField (backwards)
-    double ztgt = extendZ(pktraj,bfield, bfield.zMin(), cyl_.zmax(), ttol);
-    //    cout << "Z target extend " << ztgt << endl;
-    if(ztgt > cyl_.zmin()){ // make sure we didn't exit the BField upstream
+    retval = extendZ(pktraj,bfield, cyl_.zmax(), ttol);
+//   std::cout << "IPA extend " << retval << std::endl;
+    if(retval){
+//      auto pstart = pktraj.position3(tstart);
+//      std::cout << "zstart " << pstart.Z() << " Z extend " << zipa << std::endl;
       // first find the intersections.
       static double tstep(0.01);
       cyl_.intersect(pktraj,intersections,tstart,tstep);
@@ -88,6 +64,7 @@ namespace TrackToy {
           energy -= de;
         }
         retval = updateEnergy(pktraj,intersections.back().end(),energy);
+//        std::cout << "IPA update " << retval << std::endl;
       }
     }
     return retval;

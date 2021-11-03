@@ -9,6 +9,7 @@
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/MatEnv/DetMaterial.hh"
 #include "KinKal/Fit/Track.hh"
+#include "KinKal/Examples/ScintHit.hh" // add scint hit TODO
 #include "TrackToy/General/FileFinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/HollowCylinder.hh"
@@ -49,7 +50,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --tstep f --npts i --ntrks i --draw i --ttree i --minncells i \n");
+  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --tstep f --npts i --ntrks i --draw i --ttree i --minncells i --printdetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -82,10 +83,13 @@ int main(int argc, char **argv) {
   float kkchisq_, kkprob_;
   VEC3 kkentmom_, kkmidmom_, kkextmom_;
   // fit parameters
+  KinKal::DVEC sigmas(0.5, 0.5, 0.5, 0.5, 0.002, 0.5); // expected parameter sigmas for loop helix
+  double seedsmear(10.0);
   double dwt(1.0e6);
   unsigned maxniter(10);
-  KinKal::Config::BFCorr bfcorr(KinKal::Config::variable);
-  KinKal::Config::printLevel detail(KinKal::Config::minimal);
+//  Config::BFCorr bfcorr(Config::variable);
+  Config::BFCorr bfcorr(Config::nocorr);
+  Config::printLevel detail(Config::none);
 
   static struct option long_options[] = {
     {"mustopsfile",     required_argument, 0, 'm' },
@@ -100,6 +104,7 @@ int main(int argc, char **argv) {
     {"draw",     required_argument, 0, 'd'  },
     {"ttree",     required_argument, 0, 'r'  },
     {"minncells",     required_argument, 0, 'M' },
+    {"printdetail",     required_argument, 0, 'p' },
     {NULL, 0,0,0}
   };
   int opt;
@@ -133,6 +138,8 @@ int main(int argc, char **argv) {
                  break;
       case 'M' : minncells = atoi(optarg);
                  break;
+      case 'p' : detail = (Config::printLevel)atoi(optarg);
+                 break;
       default: print_usage();
                exit(EXIT_FAILURE);
     }
@@ -156,7 +163,10 @@ int main(int argc, char **argv) {
   FileFinder filefinder;
   std::string fullfile = filefinder.fullFile(bfile);
   cout << "Building BField from file " << fullfile << endl;
-  AxialBFieldMap bfield(fullfile);
+//  AxialBFieldMap bfield(fullfile);
+  UniformBFieldMap bfield(1.0);
+//  GradientBFieldMap bfield(1.0,1.01, -1500,1500);
+
   bfield.print(cout);
   // setup target
   Target target(targetfile);
@@ -169,12 +179,13 @@ int main(int argc, char **argv) {
   tracker.print(cout);
   EStar trackerEStar(efile_my);
   // setup fit configuration
-  KinKal::Config config;
+  Config config;
   config.dwt_ = dwt;
   config.maxniter_ = maxniter;
   config.bfcorr_ = bfcorr;
   config.tol_ = tol;
   config.plevel_ = detail;
+  config.pdchi2_ = 1e6;
   // read the schedule from the file
   fullfile = filefinder.fullFile(sfile);
   std::ifstream ifs (fullfile, std::ifstream::in);
@@ -187,7 +198,7 @@ int main(int argc, char **argv) {
   while (getline(ifs,line)){
     if(strncmp(line.c_str(),"#",1)!=0){
       istringstream ss(line);
-      KinKal::MetaIterConfig mconfig(ss);
+      MetaIterConfig mconfig(ss);
       mconfig.miter_ = nmiter++;
       config.schedule_.push_back(mconfig);
     }
@@ -270,24 +281,27 @@ int main(int argc, char **argv) {
     TimeRanges targetinters, ipainters, trackerinters;
     // extend through the target
     if(target.extendTrajectory(bfield,pktraj,targetinters)){
+//      cout << "Extended to target " << targetinters.size() << endl;
       targete_ = pktraj.energy(pktraj.range().end());
       targetde_ = targete_ - cee_;
       ntarget_ = targetinters.size();
       // extend through the IPA
       if(ipa.extendTrajectory(bfield,pktraj,ipainters)){
+//        cout << "Extended to ipa " << ipainters.size() << endl;
         nipa_ = ipainters.size();
         ipae_ = pktraj.energy(pktraj.range().end());
         ipade_ = ipae_ - targete_;
         // extend through tracker, and create the material xings and hits
         std::vector<double> htimes;
-        std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>> hits;
-        std::vector<std::shared_ptr<KinKal::ElementXing<KTRAJ>>> xings;
+        std::vector<std::shared_ptr<Hit<KTRAJ>>> hits;
+        std::vector<std::shared_ptr<ElementXing<KTRAJ>>> xings;
         double trackerpath(0.0);
         double speed = pktraj.speed(pktraj.range().end());
         tracker.simulateHits(bfield,pktraj,hits,xings,trackerinters,htimes);
         ntrackercells_ = htimes.size();
         for(auto const& inter : trackerinters) { trackerpath += speed*inter.range(); }
         if(ntrackercells_ > minncells){
+//          cout << "Extended to tracker " << trackerinters.size() << endl;
           ntrackerarcs_ = trackerinters.size();
           double ke = cestate.energy() - cestate.mass();
           trackerde_ = -100*trackerEStar.dEIonization(ke)*tracker.density()*trackerpath; // unit conversion
@@ -298,6 +312,15 @@ int main(int argc, char **argv) {
           trknc->Fill(ntrackercells_);
           // reconstruct track from hits and material info
           auto seedtraj = pktraj.nearestPiece(0.5*(htimes.front()+htimes.back()));
+          for(size_t ipar=0; ipar < NParams(); ipar++){
+            double perr = sigmas[ipar]*seedsmear;
+            seedtraj.params().covariance()[ipar][ipar] = perr*perr;
+//            seedtraj.params().parameters()[ipar] += tr_.Gaus(0.0,perr);
+          }
+          if(config.plevel_ > Config::none) {
+            cout << "True traj " << pktraj.nearestPiece(trackerinters.front().begin()) << endl;
+            cout << "Seed traj " << seedtraj << endl;
+          }
           KKTRK kktrk(config,bfield,seedtraj,hits,xings);
           // fill fit information
           auto const& fstat = kktrk.fitStatus();
@@ -320,22 +343,21 @@ int main(int argc, char **argv) {
           }
           if(fstat.usable()){
             auto const& fptraj = kktrk.fitTraj();
-            auto entstate = fptraj.stateEstimate(fptraj.zTime(tracker.zMin()));
-            auto midstate = fptraj.stateEstimate(fptraj.zTime(0.0));
-            auto extstate = fptraj.stateEstimate(fptraj.zTime(tracker.zMax()));
+            auto entstate = fptraj.stateEstimate(fptraj.ztime(tracker.zMin()));
+            auto midstate = fptraj.stateEstimate(fptraj.ztime(0.0));
+            auto extstate = fptraj.stateEstimate(fptraj.ztime(tracker.zMax()));
             kkentmom_ = entstate.momentum3();
             kkmidmom_ = midstate.momentum3();
             kkextmom_ = extstate.momentum3();
           }
           cetree_->Fill();
-
           //
           if(draw){
             plhel.push_back(new TPolyLine3D(npts));
             plhel.back()->SetLineColor(icolor++%10);
             double tstart = pktraj.range().begin();
             double ts = pktraj.range().range()/(npts-1);
-            KinKal::VEC3 ppos;
+            VEC3 ppos;
             for(unsigned ipt=0;ipt<npts;ipt++){
               double t = tstart + ipt*ts;
               ppos = pktraj.position3(t);

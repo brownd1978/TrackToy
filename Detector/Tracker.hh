@@ -10,7 +10,6 @@
 #include "KinKal/Detector/StrawXing.hh"
 #include "KinKal/Detector/StrawMaterial.hh"
 #include "KinKal/Examples/SimpleWireHit.hh"
-#include "KinKal/Examples/ScintHit.hh" // add scint hit TODO
 #include "TRandom3.h"
 #include <string>
 #include <vector>
@@ -78,43 +77,47 @@ namespace TrackToy {
     double speed = pktraj.speed(tstart);
     double tol = 1.0/speed; // 1mm accuracy
     double tstep = cellRadius()/speed;
+    double tend = pktraj.ztime(zMax());
+    bool retval = (tend < pktraj.range().end());
     // extend through the tracker to get the ranges
-    extendZ(pktraj,bfield, bfield.zMin(), cylinder().zmax(), tol);
-    // find intersections with tracker
-    cylinder().intersect(pktraj,tinters,tstart,tstep);
-//    std::cout << "ninters " << tinters.size() << std::endl;
-    for(auto const& tinter : tinters) {
-      double clen(0.0);
-      double time = tinter.begin();
-      while(time < tinter.end()){
-        auto vel = pktraj.velocity(time);
-        if(orientation_ == azimuthal){
-          auto pos = pktraj.position3(time);
-          auto rdir = KinKal::VEC3(pos.X(),pos.Y(),0.0).Unit(); // radial direction
-          double vr = vel.Dot(rdir); // radial component of velocity
-          double vtot = sqrt(vel.Z()*vel.Z() + vr*vr);
-          clen += vtot*tstep;
-        } else {
-          clen += vel.R()*tstep;
+//    bool retval = extendZ(pktraj,bfield, cylinder().zmax(), tol);
+    if(retval){
+      // find intersections with tracker
+      cylinder().intersect(pktraj,tinters,tstart,tstep);
+      //    std::cout << "ninters " << tinters.size() << std::endl;
+      for(auto const& tinter : tinters) {
+        double clen(0.0);
+        double time = tinter.begin();
+        while(time < tinter.end()){
+          auto vel = pktraj.velocity(time);
+          if(orientation_ == azimuthal){
+            auto pos = pktraj.position3(time);
+            auto rdir = KinKal::VEC3(pos.X(),pos.Y(),0.0).Unit(); // radial direction
+            double vr = vel.Dot(rdir); // radial component of velocity
+            double vtot = sqrt(vel.Z()*vel.Z() + vr*vr);
+            clen += vtot*tstep;
+          } else {
+            clen += vel.R()*tstep;
+          }
+          time += tstep;
         }
-        time += tstep;
-      }
-      unsigned ncells = (unsigned)rint(clen*cellDensity_);
-      double hstep = tinter.range()/(ncells+1);
-      double htime = tinter.begin()+0.5*tstep;
-      for(unsigned icell=0;icell<ncells;++icell){
-        htimes.push_back(htime);
-        // extend the trajectory to this time
-        extendTraj(bfield,pktraj,htime,tol);
-        // create hits and xings for this time
-        simulateHit(bfield,pktraj,htime,hits,xings);
-        // update the trajector for the effect of this material
-        updateTraj(bfield, pktraj,xings.back().get());
-        // update to the next
-        htime += hstep;
+        unsigned ncells = (unsigned)rint(clen*cellDensity_);
+        double hstep = tinter.range()/(ncells+1);
+        double htime = tinter.begin()+0.5*tstep;
+        for(unsigned icell=0;icell<ncells;++icell){
+          htimes.push_back(htime);
+          // extend the trajectory to this time
+          extendTraj(bfield,pktraj,htime,tol);
+          // create hits and xings for this time
+          simulateHit(bfield,pktraj,htime,hits,xings);
+          // update the trajector for the effect of this material
+          updateTraj(bfield, pktraj,xings.back().get());
+          // update to the next
+          htime += hstep;
+        }
       }
     }
-    return true;
+    return retval;
   }
 
   template <class KTRAJ> void Tracker::simulateHit(KinKal::BFieldMap const& bfield, KinKal::ParticleTrajectory<KTRAJ> const& pktraj,
@@ -146,7 +149,7 @@ namespace TrackToy {
   }
 
   template <class KTRAJ> KinKal::Line Tracker::wireLine(KinKal::ParticleTrajectory<KTRAJ> const& pktraj, double htime) const {
-  // find the position and direction of the particle at this time
+    // find the position and direction of the particle at this time
     auto pos = pktraj.position3(htime);
     // define the drift and wire directions
     KinKal::VEC3 ddir, wdir;
@@ -157,7 +160,7 @@ namespace TrackToy {
       float phimax = atanf(pos.Rho()/cyl_.rmin());
       double phi = tr_.Uniform(-phimax,phimax);
       wdir = fdir*cos(phi) + rdir*sin(phi);
-    // generate a random drift perp to the hit: this defines the wire position
+      // generate a random drift perp to the hit: this defines the wire position
       ddir = cos(eta)*KinKal::VEC3(wdir.Y(),-wdir.X(),0.0) + KinKal::VEC3(0.0,0.0,sin(eta));
     } else {
       wdir = KinKal::VEC3(0.0,0.0,1.0);
@@ -204,6 +207,7 @@ namespace TrackToy {
         dprop = fabs(zmin);
       }
     }
+    //    std::cout <<"particle position " << pos << " wire position " << wpos << " direction " << wdir << " ddrift " << rdrift  << " ddir " << ddir << " dprop " << dprop << " mpos " << mpos << std::endl;
     // need to check the propagation direction sign TODO
     // measurement time includes propagation and drift
     double mtime = htime + dprop/vprop_ + rdrift/vdrift_;
@@ -215,7 +219,7 @@ namespace TrackToy {
 
   template <class KTRAJ> void Tracker::updateTraj(KinKal::BFieldMap const& bfield,
       KinKal::ParticleTrajectory<KTRAJ>& pktraj, const KinKal::ElementXing<KTRAJ>* sxing) const {
-  // simulate energy loss and multiple scattering from this xing
+    // simulate energy loss and multiple scattering from this xing
     double txing = sxing->crossingTime();
     auto const& endpiece = pktraj.nearestPiece(txing);
     double mom = endpiece.momentum(txing);
