@@ -89,8 +89,8 @@ int main(int argc, char **argv) {
   unsigned maxniter(20);
 //  Config::BFCorr bfcorr(Config::variable);
   Config::BFCorr bfcorr(Config::nocorr);
-//  Config::printLevel detail(Config::none);
-  Config::printLevel detail(Config::minimal);
+  Config::printLevel detail(Config::none);
+//  Config::printLevel detail(Config::minimal);
 
   static struct option long_options[] = {
     {"mustopsfile",     required_argument, 0, 'm' },
@@ -164,8 +164,8 @@ int main(int argc, char **argv) {
   FileFinder filefinder;
   std::string fullfile = filefinder.fullFile(bfile);
   cout << "Building BField from file " << fullfile << endl;
-//  AxialBFieldMap bfield(fullfile);
-  UniformBFieldMap bfield(1.0);
+  AxialBFieldMap bfield(fullfile);
+//  UniformBFieldMap bfield(1.0);
 //  GradientBFieldMap bfield(1.04,1.00, -1500,1500);
 
   bfield.print(cout);
