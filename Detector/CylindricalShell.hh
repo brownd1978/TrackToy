@@ -30,21 +30,22 @@ namespace TrackToy {
   template<class PKTRAJ> void CylindricalShell::intersect(PKTRAJ const& pktraj, TimeRanges& tranges, double tstart, double tstep) const {
     // define boundary times, assuming constant velocity
     tranges.clear();
-    // search for intersections following the starting time
-    double ttest = timeStep(pktraj,zmin(),zmax(),tstart,tstep) - tstep;
+    // find the front
+    double ttest = ztime(pktraj,tstart,zmin());
     auto pos = pktraj.position3(ttest);
     double dr = pos.Rho() - radius();
     double olddr = dr;
-    while(ttest < pktraj.range().end()){
-    // step
-      ttest = timeStep(pktraj,zmin(),zmax(),ttest,tstep);
+    // add test for looping TODO
+    while(ttest < pktraj.range().end() && pos.Z() < zmax()){
+      // step
+      ttest += tstep;
       auto oldpos = pos;
       pos = pktraj.position3(ttest);
       dr = pos.Rho() - radius();
-      if(olddr*dr < 0 && (
-	(pos.Z() > zmin() && pos.Z() < zmax()) ||
-	(oldpos.Z() > zmin() && oldpos.Z() < zmax()) ) ) {
-      // we've crossed the shell.  Interpolate to the exact crossing
+      if(olddr*dr < 0
+          && ( (pos.Z() > zmin() && pos.Z() < zmax()) ||
+            (oldpos.Z() > zmin() && oldpos.Z() < zmax()) ) ) {
+        // we've crossed the shell.  Interpolate to the exact crossing
         double tx = ttest - tstep*fabs(dr/(dr-olddr));
         // compute the crossing time range
         auto vel = pktraj.velocity(tx);

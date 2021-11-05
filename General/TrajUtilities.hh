@@ -81,36 +81,39 @@ namespace TrackToy {
     }
   }
 
-
-
-  template<class KTRAJ> double timeStep(KinKal::ParticleTrajectory<KTRAJ>const& pktraj, double zmin, double zmax, double tstart, double tstep) {
-    double ttest = tstart;
-    auto pos = pktraj.position3(ttest);
-    double zpos = 0.5*(zmin+zmax);
-    if(pos.Z() > zmin && pos.Z() < zmax){
-      // take small steps if we're in the right z range
-      ttest += tstep;
-    } else {
-      // step through the pieces till we are going in the right direction
-      auto vel = pktraj.velocity(ttest);
-      while ( (zpos -pos.Z())*vel.z() < 0.0 && ttest < pktraj.range().end() ){
-        auto const& piece = pktraj.nearestPiece(ttest);
-        ttest = piece.range().end() + tstep;
-        pos = pktraj.position3(ttest);
-        vel = pktraj.velocity(ttest);
+  template <class KTRAJ> double ztime(KinKal::ParticleTrajectory<KTRAJ>const& pktraj, double tstart, double zpos) {
+    auto istart = pktraj.nearestIndex(tstart);
+// advance till we're going in the correct direction
+    auto index = istart;
+    auto retval = tstart;
+    while(index < pktraj.pieces().size()){
+      auto const& piece = pktraj.piece(index);
+      auto pos = piece.position3(piece.range().begin());
+      auto vel = piece.velocity(piece.range().begin());
+      double dt =(zpos-pos.Z())/vel.Z();
+      if(dt > 0.0){
+        break;
       }
-      // step through the pieces till we're in the right z range
-
-      while( ttest < pktraj.range().end() &&
-          ((vel.Z() > 0.0 && pos.Z() < zmin) ||
-           (vel.Z() < 0.0 && pos.Z() > zmax)) ){
-        auto const& piece = pktraj.nearestPiece(ttest);
-        ttest = vel.Z() > 0.0 ? piece.ztime(zmin) : piece.ztime(zmax);
-        ttest += tstep;
-        pos = pktraj.position3(ttest);
-      }
+      index++;
     }
-    return ttest;
+    // now iteratively search for the solution
+    size_t oldindex = index;
+    size_t oldoldindex = index;
+    size_t ntries(0);
+    do {
+      ++ntries;
+      auto const& traj = pktraj.piece(index);
+      retval = traj.ztime(zpos);
+      oldoldindex = oldindex;
+      oldindex = index;
+      index = pktraj.nearestIndex(retval);
+      // protext against osccilation and divergence
+    } while (retval < pktraj.range().end() && oldindex != index && oldoldindex != index && ntries < pktraj.pieces().size());
+    // last check for failure
+    if(retval < tstart)
+      retval = pktraj.range().end()+1.0e-6;
+    return retval;
   }
+
 }
 #endif

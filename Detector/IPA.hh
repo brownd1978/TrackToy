@@ -42,8 +42,8 @@ namespace TrackToy {
   template<class PKTRAJ> bool IPA::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections) const {
     bool retval(false);
     intersections.clear();
-    // compute the time tolerance based on the speed.  Require 1mm precision (good enough for IPA
-    double ttol = 1.0/pktraj.speed(pktraj.range().begin());
+    // compute the time tolerance based on the speed.
+    double ttol = 3.0/pktraj.speed(pktraj.range().begin());
     // record the end of the previous extension; this is where new extensions start
     double tstart = pktraj.back().range().begin();
     double energy = pktraj.energy(tstart);
@@ -61,7 +61,7 @@ namespace TrackToy {
           auto eloss = energyLoss(pktraj,ipainter);
           double de = eloss.mean(); // should sample the distribution FIXME
 //        double de = eloss.sample(tr_.Uniform(0.0,1.0)); // currently broken, FIXME
-          energy -= de;
+          energy += de;
         }
         retval = updateEnergy(pktraj,intersections.back().end(),energy);
 //        std::cout << "IPA update " << retval << std::endl;

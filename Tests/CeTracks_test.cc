@@ -66,11 +66,11 @@ int main(int argc, char **argv) {
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
   string sfile("Data/Schedule.txt"); // fit schedule
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
-  double tstep(0.01), tol(1e-3);
+  double tstep(0.01), tol(0.1);
   double emass(0.511); //electron
   size_t npts(5000);
   bool draw(false), ttree(true);
-  int minncells(10); // minimum # of hits
+  int minncells(15); // minimum # of hits
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
   TTree* cetree_;
@@ -86,10 +86,11 @@ int main(int argc, char **argv) {
   KinKal::DVEC sigmas(0.5, 0.5, 0.5, 0.5, 0.002, 0.5); // expected parameter sigmas for loop helix
   double seedsmear(10.0);
   double dwt(1.0e6);
-  unsigned maxniter(10);
+  unsigned maxniter(20);
 //  Config::BFCorr bfcorr(Config::variable);
   Config::BFCorr bfcorr(Config::nocorr);
-  Config::printLevel detail(Config::none);
+//  Config::printLevel detail(Config::none);
+  Config::printLevel detail(Config::minimal);
 
   static struct option long_options[] = {
     {"mustopsfile",     required_argument, 0, 'm' },
@@ -165,7 +166,7 @@ int main(int argc, char **argv) {
   cout << "Building BField from file " << fullfile << endl;
 //  AxialBFieldMap bfield(fullfile);
   UniformBFieldMap bfield(1.0);
-//  GradientBFieldMap bfield(1.0,1.01, -1500,1500);
+//  GradientBFieldMap bfield(1.04,1.00, -1500,1500);
 
   bfield.print(cout);
   // setup target
@@ -212,9 +213,9 @@ int main(int argc, char **argv) {
 
   // histograms
   TFile cetracksfile("CeTracks.root","RECREATE");
-  TH1F* ipade = new TH1F("ipde","IPA dE",100,0.0,0.5);
-  TH1F* tarde = new TH1F("tarde","Target dE;dE (MeV)",100,0.001,5.0);
-  TH1F* trkde = new TH1F("trkde","Tracker dE;dE (MeV)",100,0.001,2.0);
+  TH1F* ipade = new TH1F("ipde","IPA dE",100,-5.0,0.0);
+  TH1F* tarde = new TH1F("tarde","Target dE;dE (MeV)",100,-5.0,0.0);
+  TH1F* trkde = new TH1F("trkde","Tracker dE;dE (MeV)",100,-5.0,0.0);
   TH1F* trknc = new TH1F("trknc","Tracker N Cells;N Cells",100,0.001,100.0);
   if(ttree){
     cetree_ = new TTree("ce","ce");
@@ -234,6 +235,13 @@ int main(int argc, char **argv) {
     cetree_->Branch("trackerde",&trackerde_,"trackerde/F");
     cetree_->Branch("targete",&targete_,"targete/F");
     cetree_->Branch("ipae",&ipae_,"ipae/F");
+    cetree_->Branch("kkstatus",&kkstatus_,"kkstatus/I");
+    cetree_->Branch("kkndof",&kkndof_,"kkndof/I");
+    cetree_->Branch("kknbf",&kknbf_,"kknbf/I");
+    cetree_->Branch("kknhit",&kknhit_,"kknhit/I");
+    cetree_->Branch("kknmat",&kknmat_,"kknmat/I");
+    cetree_->Branch("kkchisq",&kkchisq_,"kkchisq/F");
+    cetree_->Branch("kkprob",&kkprob_,"kkprob/F");
   }
 
   std::vector<TPolyLine3D*> plhel;
@@ -264,7 +272,8 @@ int main(int argc, char **argv) {
     double tdecay = tr_.Exp(lifetime);
     // generate random phi and cos(theta)
     double phi = tr_.Uniform(-M_PI,M_PI);
-    double cost = tr_.Uniform(-1.0,1.0);
+    double cost = tr_.Uniform(0.6,0.9);
+//    double cost = 0.7;
     double sint = sqrt(1.0-cost*cost);
     VEC4 const& pos4 = *mustoppos;
     cepos_ = pos4.Vect();
@@ -272,7 +281,7 @@ int main(int argc, char **argv) {
     double mom = sqrt(cee_*cee_ - emass*emass);
     cemom_ = VEC3(mom*sint*cos(phi),mom*sint*sin(phi),mom*cost);
     ParticleState cestate(cepos_,cemom_,cet_,emass,-1);
-    TimeRange range(cestate.time(),cestate.time()+1000.0); // replace hard-coded limit with a physical estimate FIXME
+    TimeRange range(cestate.time(),cestate.time()+1000.0); // much longer than physical: is truncated later
     auto bstart = bfield.fieldVect(cestate.position3());
     KTRAJ lhelix(cestate,bstart,range);
     //    cout << "Initial trajectory " << lhelix << endl;
@@ -310,6 +319,9 @@ int main(int argc, char **argv) {
           ipade->Fill(ipade_);
           trkde->Fill(trackerde_);
           trknc->Fill(ntrackercells_);
+          // add calo hits TODO
+          // truncate the true trajectory
+          pktraj.setRange(TimeRange(pktraj.range().begin(),pktraj.back().range().begin()+0.01));
           // reconstruct track from hits and material info
           auto seedtraj = pktraj.nearestPiece(0.5*(htimes.front()+htimes.back()));
           for(size_t ipar=0; ipar < NParams(); ipar++){
@@ -318,8 +330,9 @@ int main(int argc, char **argv) {
 //            seedtraj.params().parameters()[ipar] += tr_.Gaus(0.0,perr);
           }
           if(config.plevel_ > Config::none) {
-            cout << "True traj " << pktraj.nearestPiece(trackerinters.front().begin()) << endl;
-            cout << "Seed traj " << seedtraj << endl;
+            cout << "Front traj " << pktraj.nearestPiece(htimes.front());
+            cout << "Back traj " << pktraj.nearestPiece(htimes.back());
+            cout << "Seed traj " << seedtraj;
           }
           KKTRK kktrk(config,bfield,seedtraj,hits,xings);
           // fill fit information
@@ -343,9 +356,10 @@ int main(int argc, char **argv) {
           }
           if(fstat.usable()){
             auto const& fptraj = kktrk.fitTraj();
-            auto entstate = fptraj.stateEstimate(fptraj.ztime(tracker.zMin()));
-            auto midstate = fptraj.stateEstimate(fptraj.ztime(0.0));
-            auto extstate = fptraj.stateEstimate(fptraj.ztime(tracker.zMax()));
+            double tstart = fptraj.range().begin();
+            auto entstate = fptraj.stateEstimate(ztime(fptraj,tstart,tracker.zMin()));
+            auto midstate = fptraj.stateEstimate(ztime(fptraj,tstart,0.0));
+            auto extstate = fptraj.stateEstimate(ztime(fptraj,tstart,tracker.zMax()));
             kkentmom_ = entstate.momentum3();
             kkmidmom_ = midstate.momentum3();
             kkextmom_ = extstate.momentum3();

@@ -4,6 +4,7 @@
 #ifndef TrackToy_Detector_Tracker_hh
 #define TrackToy_Detector_Tracker_hh
 #include "TrackToy/Detector/HollowCylinder.hh"
+#include "TrackToy/General/TrajUtilities.hh"
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/General/Vectors.hh"
 #include "KinKal/Trajectory/Line.hh"
@@ -75,9 +76,9 @@ namespace TrackToy {
       std::vector<KinKal::TimeRange>& tinters, std::vector<double>& htimes) const {
     double tstart = pktraj.back().range().begin();
     double speed = pktraj.speed(tstart);
-    double tol = 1.0/speed; // 1mm accuracy
+    double tol = 3.0/speed;
     double tstep = cellRadius()/speed;
-    double tend = pktraj.ztime(zMax());
+    double tend = ztime(pktraj,tstart,zMax());
     bool retval = (tend < pktraj.range().end());
     // extend through the tracker to get the ranges
 //    bool retval = extendZ(pktraj,bfield, cylinder().zmax(), tol);
@@ -133,7 +134,7 @@ namespace TrackToy {
     // find the POCA between the particle trajectory and the wire line
     KinKal::CAHint tphint(htime,htime);
     static double tprec(1e-8); // TPOCA precision
-    static double ambigdoca(0.25); // minimum distance to use drift
+    static double ambigdoca(-1.0); // minimum distance to use drift
     PTCA tp(pktraj,wline,tphint,tprec);
     // define the initial ambiguity; it is the MC true value by default
     KinKal::WireHitState::LRAmbig ambig(KinKal::WireHitState::null);
@@ -151,26 +152,24 @@ namespace TrackToy {
   template <class KTRAJ> KinKal::Line Tracker::wireLine(KinKal::ParticleTrajectory<KTRAJ> const& pktraj, double htime) const {
     // find the position and direction of the particle at this time
     auto pos = pktraj.position3(htime);
+    auto pdir = pktraj.direction(htime);
     // define the drift and wire directions
-    KinKal::VEC3 ddir, wdir;
-    auto eta = tr_.Uniform(-M_PI,M_PI);
+    KinKal::VEC3 wdir;
     if(orientation_ == azimuthal){
       auto rdir = KinKal::VEC3(pos.X(),pos.Y(),0.0).Unit(); // radial direction
-      auto fdir = KinKal::VEC3(pos.Y(),-pos.X(),0.0).Unit(); // azimuthal direction
+      auto fdir = KinKal::VEC3(-pos.Y(),pos.X(),0.0).Unit(); // azimuthal direction (increasing)
       float phimax = atanf(pos.Rho()/cyl_.rmin());
       double phi = tr_.Uniform(-phimax,phimax);
       wdir = fdir*cos(phi) + rdir*sin(phi);
-      // generate a random drift perp to the hit: this defines the wire position
-      ddir = cos(eta)*KinKal::VEC3(wdir.Y(),-wdir.X(),0.0) + KinKal::VEC3(0.0,0.0,sin(eta));
     } else {
       wdir = KinKal::VEC3(0.0,0.0,1.0);
-      ddir = KinKal::VEC3(cos(eta),sin(eta),0.0);
     }
+    // drift direction is perp to wire and particle
+    auto ddir = (pdir.Cross(wdir)).Unit();
     // uniform drift distance = uniform impact parameter
     double rdrift = tr_.Uniform(0.0,cellRadius());
     auto wpos = pos + rdrift*ddir;
     // find the wire ends; this is where the wire crosses the outer envelope
-    auto mpos = wpos;
     double dprop, wlen;
     if(orientation_ == azimuthal){
       double rwire = wpos.Rho(); // radius of the wire position
@@ -188,10 +187,9 @@ namespace TrackToy {
       wlen = fabs(d1)+fabs(d2);
       // choose the shortest propagation distance to define the measurement (earliest time)
       if(fabs(d1) < fabs(d2)){
-        mpos += d1*wdir;
+        wdir *= -1.0; // points from source to measurement location
         dprop = fabs(d1);
       } else {
-        mpos += d2*wdir;
         dprop = fabs(d2);
       }
     } else {
@@ -200,21 +198,20 @@ namespace TrackToy {
       double zmin = zMin() - wpos.Z();
       wlen = zmax - zmin;
       if(fabs(zmax) < fabs(zmin)){
-        mpos += zmax*wdir;
         dprop = fabs(zmax);
       } else {
-        mpos += zmin*wdir;
+        wdir *= -1.0; // points from source to measurement location
         dprop = fabs(zmin);
       }
     }
     //    std::cout <<"particle position " << pos << " wire position " << wpos << " direction " << wdir << " ddrift " << rdrift  << " ddir " << ddir << " dprop " << dprop << " mpos " << mpos << std::endl;
-    // need to check the propagation direction sign TODO
     // measurement time includes propagation and drift
     double mtime = htime + dprop/vprop_ + rdrift/vdrift_;
     // smear measurement time by the resolution
     mtime = tr_.Gaus(mtime,sigt_);
-    // construct the trajectory for this hit.  Note this embeds the timing and propagation information
-    return KinKal::Line(mpos,mtime,wdir*vprop_,wlen);
+    // construct the trajectory for this hit.  Note this embeds the timing and location information together
+    auto mpos = wpos + dprop*wdir;
+    return KinKal::Line(mpos,mtime,wdir*vprop_,wlen/vprop_);
   }
 
   template <class KTRAJ> void Tracker::updateTraj(KinKal::BFieldMap const& bfield,
@@ -249,7 +246,6 @@ namespace TrackToy {
     // generate a new piece and append
     KinKal::VEC3 bnom = bfield.fieldVect(endpos.Vect());
     KTRAJ newend(endpos,endmom,endpiece.charge(),bnom,KinKal::TimeRange(txing,pktraj.range().end()));
-    //      newend.print(cout,1);
     pktraj.append(newend,true); // allow truncation if needed
   }
 

@@ -38,15 +38,15 @@ namespace TrackToy {
   template<class PKTRAJ> bool Target::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections) const {
     bool retval(false);
     intersections.clear();
-    // compute the time tolerance based on the speed.  Require 1mm precision (good enough for target)
-    double ttol = 1.0/pktraj.speed(pktraj.range().begin());
+    // compute the time tolerance based on the speed and a rough distance approximation
+    double ttol = 3.0/pktraj.speed(pktraj.range().begin());
     // extend to the  of the target or exiting the BField (backwards)
     retval = extendZ(pktraj,bfield, cyl_.zmax(), ttol);
     //    cout << "Z target extend " << ztgt << endl;
     if(retval){ // make sure we didn't exit the BField upstream
       // first find the intersections.
       double tstart = pktraj.range().begin();
-      static double tstep(0.01);
+      double tstep = 3.0/pktraj.speed(tstart);
       cyl_.intersect(pktraj,intersections,tstart,tstep);
       if(intersections.size() > 0){
         double energy = pktraj.energy(intersections.front().begin());
