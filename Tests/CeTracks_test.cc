@@ -211,6 +211,7 @@ int main(int argc, char **argv) {
   CeMinusSpectrumParams ceparams(endpoint);
   CeMinusSpectrum cespect(ceparams);
 
+
   // histograms
   TFile cetracksfile("CeTracks.root","RECREATE");
   TH1F* ipade = new TH1F("ipde","IPA dE",100,-5.0,0.0);
@@ -272,7 +273,8 @@ int main(int argc, char **argv) {
     double tdecay = tr_.Exp(lifetime);
     // generate random phi and cos(theta)
     double phi = tr_.Uniform(-M_PI,M_PI);
-    double cost = tr_.Uniform(0.6,0.9);
+//    double cost = tr_.Uniform(0.6,0.9);
+    double cost = tr_.Uniform(-1.0,1.0);
 //    double cost = 0.7;
     double sint = sqrt(1.0-cost*cost);
     VEC4 const& pos4 = *mustoppos;
@@ -291,12 +293,14 @@ int main(int argc, char **argv) {
     // extend through the target
     if(target.extendTrajectory(bfield,pktraj,targetinters)){
 //      cout << "Extended to target " << targetinters.size() << endl;
+//      pktraj.print(cout,2);
       targete_ = pktraj.energy(pktraj.range().end());
       targetde_ = targete_ - cee_;
       ntarget_ = targetinters.size();
       // extend through the IPA
       if(ipa.extendTrajectory(bfield,pktraj,ipainters)){
 //        cout << "Extended to ipa " << ipainters.size() << endl;
+//        pktraj.print(cout,2);
         nipa_ = ipainters.size();
         ipae_ = pktraj.energy(pktraj.range().end());
         ipade_ = ipae_ - targete_;
@@ -308,11 +312,12 @@ int main(int argc, char **argv) {
         double speed = pktraj.speed(pktraj.range().end());
         tracker.simulateHits(bfield,pktraj,hits,xings,trackerinters,htimes);
         ntrackercells_ = htimes.size();
-        for(auto const& inter : trackerinters) { trackerpath += speed*inter.range(); }
         if(ntrackercells_ > minncells){
 //          cout << "Extended to tracker " << trackerinters.size() << endl;
+//          pktraj.print(cout,2);
           ntrackerarcs_ = trackerinters.size();
           double ke = cestate.energy() - cestate.mass();
+          for(auto const& inter : trackerinters) { trackerpath += speed*inter.range(); }
           trackerde_ = -100*trackerEStar.dEIonization(ke)*tracker.density()*trackerpath; // unit conversion
           trackere_ = pktraj.energy(pktraj.range().end());
           tarde->Fill(targetde_);
@@ -330,8 +335,8 @@ int main(int argc, char **argv) {
 //            seedtraj.params().parameters()[ipar] += tr_.Gaus(0.0,perr);
           }
           if(config.plevel_ > Config::none) {
-            cout << "Front traj " << pktraj.nearestPiece(htimes.front());
-            cout << "Back traj " << pktraj.nearestPiece(htimes.back());
+//            cout << "Front traj " << pktraj.nearestPiece(htimes.front());
+//            cout << "Back traj " << pktraj.nearestPiece(htimes.back());
             cout << "Seed traj " << seedtraj;
           }
           KKTRK kktrk(config,bfield,seedtraj,hits,xings);

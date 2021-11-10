@@ -88,8 +88,9 @@ namespace TrackToy {
     auto retval = tstart;
     while(index < pktraj.pieces().size()){
       auto const& piece = pktraj.piece(index);
-      auto pos = piece.position3(piece.range().begin());
-      auto vel = piece.velocity(piece.range().begin());
+      retval = std::max(tstart,piece.range().begin());
+      auto pos = piece.position3(retval);
+      auto vel = piece.velocity(retval);
       double dt =(zpos-pos.Z())/vel.Z();
       if(dt > 0.0){
         break;
@@ -97,18 +98,16 @@ namespace TrackToy {
       index++;
     }
     // now iteratively search for the solution
-    size_t oldindex = index;
-    size_t oldoldindex = index;
     size_t ntries(0);
+    double dz(1.0e6);
     do {
       ++ntries;
-      auto const& traj = pktraj.piece(index);
-      retval = traj.ztime(zpos);
-      oldoldindex = oldindex;
-      oldindex = index;
-      index = pktraj.nearestIndex(retval);
-      // protext against osccilation and divergence
-    } while (retval < pktraj.range().end() && oldindex != index && oldoldindex != index && ntries < pktraj.pieces().size());
+      auto pos = pktraj.position3(retval);
+      auto vel = pktraj.velocity(retval);
+      retval += (zpos-pos.Z())/vel.Z();
+      pos = pktraj.position3(retval);
+      dz = fabs(zpos-pos.Z());
+    } while (fabs(dz)<1.0e-6 && retval < pktraj.range().end() && ntries < 100);
     // last check for failure
     if(retval < tstart)
       retval = pktraj.range().end()+1.0e-6;

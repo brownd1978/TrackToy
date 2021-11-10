@@ -40,44 +40,56 @@ namespace TrackToy {
     // see if we are starting inside
     double ttest = tstart;
     auto pos = pktraj.position3(ttest);
-    //      cout << "particle enters at " << pos << endl;
-    if(pos.Z() < zmin() || pos.Z() > zmax()) {
-      // advance to where we enter the volume going the right way
-      auto tmin = ztime(pktraj,tstart,zmin());
-      auto tmax = ztime(pktraj,tstart,zmax());
-      ttest = std::min(tmin,tmax)+1.0e-6; //  step a tiny amount
-      pos = pktraj.position3(ttest);
-    }
-    // if we start inside, setup the first range
     bool inside = isInside(pos);
-    bool oldinside = inside;
-    bool crosses(false);
     if(inside) tranges.push_back(KinKal::TimeRange(ttest,ttest));
-    while(ttest < pktraj.range().end() && pos.Z() < zmax()){
-      ttest+= tstep;
-      pos = pktraj.position3(ttest);
-      oldinside = inside;
-      inside = isInside(pos);
-      crosses = oldinside != inside;
-      //          cout << "ttest " << ttest << " pos " << pos << endl;
-      if(crosses){
-        if(oldinside){
-          // finish this range
-          tranges.back().end() = ttest;
-        }
-        else {
-          // entering: create the range
-          tranges.push_back(KinKal::TimeRange(ttest,ttest));
-        }
-      }
-      // if we stepped outside the z range, see if the particle loops back
-      if(pos.Z() < zmin() ) {
-        // advance to where we enter the volume going the right way
-        auto tmin = ztime(pktraj,ttest,zmin())-1.0e-6;
-        ttest = std::max(ttest,tmin);
+    while(ttest < pktraj.range().end()){
+      //      cout << "particle enters at " << pos << endl;
+      auto vel = pktraj.velocity(ttest);
+      double dz = fabs(tstep*vel.Z());
+      if(pos.Z() > zmin()-dz && pos.Z()< zmax()+dz ){
+        // small steps while we're in the z range
+        bool oldinside = inside;
+        bool crosses(false);
+        ttest+= tstep;
         pos = pktraj.position3(ttest);
-        inside = isInside(pos);
         oldinside = inside;
+        inside = isInside(pos);
+        crosses = oldinside != inside;
+        //          cout << "ttest " << ttest << " pos " << pos << endl;
+        if(crosses){
+          if(oldinside){
+            // finish this range
+            tranges.back().end() = ttest;
+          }
+          else {
+            // entering: create the range
+            tranges.push_back(KinKal::TimeRange(ttest,ttest));
+          }
+        }
+      } else {
+        // step by piece until we are heading the right direction
+        vel = pktraj.velocity(ttest);
+        double dt = (zpos() - pos.Z())/vel.Z();
+        while(dt < 0.0 && ttest < pktraj.range().end()){
+          // advance to the end of this piece
+          ttest = pktraj.nearestPiece(ttest).range().end()+1.0e-6; //  step to the next piece
+          pos = pktraj.position3(ttest);
+          vel = pktraj.velocity(ttest);
+          dt = (zpos() - pos.Z())/vel.Z();
+        }
+        // now advance to a piece that enters the z range
+        double dz = fabs(tstep*vel.Z());
+        while( fabs (pos.Z()- zmin())> dz && fabs(pos.Z()- zmax() < dz) && ttest < pktraj.range().end()) {
+          if(vel.Z() > 0)
+            dt = fabs((zmin() - pos.Z())/vel.Z());
+          else
+            dt = fabs((zmax() - pos.Z())/vel.Z());
+          ttest = std::min(ttest+dt, pktraj.nearestPiece(ttest).range().end()+1.0e-6);
+          pos = pktraj.position3(ttest);
+          vel = pktraj.velocity(ttest);
+        }
+        inside = isInside(pos);
+        if(inside) tranges.push_back(KinKal::TimeRange(ttest,ttest));
       }
     }
     // finish the last range
