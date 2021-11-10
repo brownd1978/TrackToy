@@ -214,9 +214,9 @@ int main(int argc, char **argv) {
 
   // histograms
   TFile cetracksfile("CeTracks.root","RECREATE");
-  TH1F* ipade = new TH1F("ipde","IPA dE",100,-5.0,0.0);
-  TH1F* tarde = new TH1F("tarde","Target dE;dE (MeV)",100,-5.0,0.0);
-  TH1F* trkde = new TH1F("trkde","Tracker dE;dE (MeV)",100,-5.0,0.0);
+  TH1F* ipade = new TH1F("ipde","IPA dE",100,-3.0,0.0);
+  TH1F* tarde = new TH1F("tarde","Target dE;dE (MeV)",100,-3.0,0.0);
+  TH1F* trkde = new TH1F("trkde","Tracker dE;dE (MeV)",100,-3.0,0.0);
   TH1F* trknc = new TH1F("trknc","Tracker N Cells;N Cells",100,0.001,100.0);
   if(ttree){
     cetree_ = new TTree("ce","ce");
@@ -260,8 +260,8 @@ int main(int argc, char **argv) {
     }
     //    cout << "Track " << itrk_ << endl;
     // reset tree variables
-    targetde_ = ipade_ = trackerde_ = 0.0;
-    targete_ = ipae_ = 0.0;
+    targetde_ = ipade_ = trackerde_ = 1.0;
+    targete_ = ipae_ = -1.0;
     nipa_ = ntrackerarcs_ = ntrackercells_ = -1;
     kkndof_ = kknbf_ = kknmat_ = kknhit_ = kkniter_ = -1;
     kkchisq_ = kkprob_ = -1.0;
@@ -308,14 +308,15 @@ int main(int argc, char **argv) {
         std::vector<double> htimes;
         std::vector<std::shared_ptr<Hit<KTRAJ>>> hits;
         std::vector<std::shared_ptr<ElementXing<KTRAJ>>> xings;
-        double trackerpath(0.0);
         double speed = pktraj.speed(pktraj.range().end());
         tracker.simulateHits(bfield,pktraj,hits,xings,trackerinters,htimes);
         ntrackercells_ = htimes.size();
+        ntrackerarcs_ = trackerinters.size();
         if(ntrackercells_ > minncells){
 //          cout << "Extended to tracker " << trackerinters.size() << endl;
 //          pktraj.print(cout,2);
-          ntrackerarcs_ = trackerinters.size();
+// calcluate the estart energy loss
+          double trackerpath(0.0);
           double ke = cestate.energy() - cestate.mass();
           for(auto const& inter : trackerinters) { trackerpath += speed*inter.range(); }
           trackerde_ = -100*trackerEStar.dEIonization(ke)*tracker.density()*trackerpath; // unit conversion
@@ -369,7 +370,8 @@ int main(int argc, char **argv) {
             kkmidmom_ = midstate.momentum3();
             kkextmom_ = extstate.momentum3();
           }
-          cetree_->Fill();
+
+//          cetree_->Fill();
           //
           if(draw){
             plhel.push_back(new TPolyLine3D(npts));
@@ -386,6 +388,7 @@ int main(int argc, char **argv) {
         } // particle hits the tracker
       } // particle stops in IPA
     } // particle exits the target going downstream
+    cetree_->Fill();
   }
   // Canvas of basic parameters
   TCanvas* ctrkcan = new TCanvas("CeTrack");

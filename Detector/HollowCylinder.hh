@@ -72,21 +72,18 @@ namespace TrackToy {
         double dt = (zpos() - pos.Z())/vel.Z();
         while(dt < 0.0 && ttest < pktraj.range().end()){
           // advance to the end of this piece
-          ttest = pktraj.nearestPiece(ttest).range().end()+1.0e-6; //  step to the next piece
+          ttest = pktraj.nearestPiece(ttest).range().end()+tstep;
           pos = pktraj.position3(ttest);
           vel = pktraj.velocity(ttest);
           dt = (zpos() - pos.Z())/vel.Z();
         }
-        // now advance to a piece that enters the z range
-        double dz = fabs(tstep*vel.Z());
-        while( fabs (pos.Z()- zmin())> dz && fabs(pos.Z()- zmax() < dz) && ttest < pktraj.range().end()) {
-          if(vel.Z() > 0)
-            dt = fabs((zmin() - pos.Z())/vel.Z());
-          else
-            dt = fabs((zmax() - pos.Z())/vel.Z());
-          ttest = std::min(ttest+dt, pktraj.nearestPiece(ttest).range().end()+1.0e-6);
+        // now advance to a piece that is within 1 step of the z range
+        dt = (vel.Z() > 0) ?  (zmin() - pos.Z())/vel.Z() : (zmax() - pos.Z())/vel.Z();
+        while( dt > tstep && ttest < pktraj.range().end()){
+          ttest = std::min(ttest+dt, pktraj.nearestPiece(ttest).range().end()+tstep);
           pos = pktraj.position3(ttest);
           vel = pktraj.velocity(ttest);
+          dt = (vel.Z() > 0) ?  (zmin() - pos.Z())/vel.Z() : (zmax() - pos.Z())/vel.Z();
         }
         inside = isInside(pos);
         if(inside) tranges.push_back(KinKal::TimeRange(ttest,ttest));

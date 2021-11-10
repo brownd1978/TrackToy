@@ -107,7 +107,7 @@ namespace TrackToy {
       retval += (zpos-pos.Z())/vel.Z();
       pos = pktraj.position3(retval);
       dz = fabs(zpos-pos.Z());
-    } while (fabs(dz)<1.0e-6 && retval < pktraj.range().end() && ntries < 100);
+    } while (fabs(dz)>1.0e-6 && retval < pktraj.range().end() && ntries < 100);
     // last check for failure
     if(retval < tstart)
       retval = pktraj.range().end()+1.0e-6;
