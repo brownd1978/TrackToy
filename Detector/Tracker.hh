@@ -136,7 +136,7 @@ namespace TrackToy {
     static double ambigdoca(-1.0); // minimum distance to use drift, should be a parameter FIXME
     PTCA tp(pktraj,wline,tphint,tprec);
     // check
-//    std::cout << "sensor TOCA " << tp.sensorToca() - fabs(tp.doca())/vdrift_ << " hit time " << htime << std::endl;
+//    std::cout << "doca " << tp.doca() << " sensor TOCA " << tp.sensorToca() - fabs(tp.doca())/vdrift_ << " particle TOCA " << tp.particleToca() << " hit time " << htime << std::endl;
     // define the initial ambiguity; it is the MC true value by default
     KinKal::WireHitState::LRAmbig ambig(KinKal::WireHitState::null);
     if(fabs(tp.doca())> ambigdoca) ambig = tp.doca() < 0 ? KinKal::WireHitState::left : KinKal::WireHitState::right;
@@ -169,11 +169,9 @@ namespace TrackToy {
       wdir = zdir;
     }
     // drift direction is perp to wire and particle
-    auto ddir = (pdir.Cross(wdir)).Unit();
-    // make it point radially inwards
-    if(PerpVector(ddir,zdir).Dot(PerpVector(pos,zdir)) > 0.0)ddir *= -1.0;
-    // uniform drift distance = uniform impact parameter
-    double rdrift = tr_.Uniform(0.0,cellRadius());
+    auto ddir = pdir.Cross(wdir).Unit();
+    // uniform drift distance = uniform impact parameter (random sign)
+    double rdrift = tr_.Uniform(-cellRadius(),cellRadius());
     auto wpos = pos + rdrift*ddir;
     // find the wire ends; this is where the wire crosses the outer envelope
     double dprop, wlen;
@@ -206,7 +204,7 @@ namespace TrackToy {
       }
     }
     // measurement time includes propagation and drift
-    double mtime = htime + dprop/vprop_ + rdrift/vdrift_;
+    double mtime = htime + dprop/vprop_ + fabs(rdrift)/vdrift_;
     // smear measurement time by the resolution
     mtime = tr_.Gaus(mtime,sigt_);
     // construct the trajectory for this hit.  Note this embeds the timing and location information together
