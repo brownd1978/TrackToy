@@ -30,29 +30,51 @@ namespace TrackToy {
   template<class PKTRAJ> void CylindricalShell::intersect(PKTRAJ const& pktraj, TimeRanges& tranges, double tstart, double tstep) const {
     // define boundary times, assuming constant velocity
     tranges.clear();
-    // find the front
-    double ttest = ztime(pktraj,tstart,zmin());
+    double ttest = tstart;
     auto pos = pktraj.position3(ttest);
     double dr = pos.Rho() - radius();
     double olddr = dr;
-    // add test for looping TODO
-    while(ttest < pktraj.range().end() && pos.Z() < zmax()){
-      // step
-      ttest += tstep;
-      auto oldpos = pos;
-      pos = pktraj.position3(ttest);
-      dr = pos.Rho() - radius();
-      if(olddr*dr < 0
-          && ( (pos.Z() > zmin() && pos.Z() < zmax()) ||
-            (oldpos.Z() > zmin() && oldpos.Z() < zmax()) ) ) {
-        // we've crossed the shell.  Interpolate to the exact crossing
-        double tx = ttest - tstep*fabs(dr/(dr-olddr));
-        // compute the crossing time range
-        auto vel = pktraj.velocity(tx);
-        double dt = rhalf_/vel.Rho();
-        tranges.push_back(KinKal::TimeRange(tx-dt,tx+dt));
+    while(ttest < pktraj.range().end()){
+      //      cout << "particle enters at " << pos << endl;
+      auto vel = pktraj.velocity(ttest);
+      double dz = fabs(tstep*vel.Z());
+      if(pos.Z() > zmin()-dz && pos.Z()< zmax()+dz ){
+        // small steps while we're in the z range
+        ttest+= tstep;
+        auto oldpos = pos;
+        pos = pktraj.position3(ttest);
+        dr = pos.Rho() - radius();
+        if(olddr*dr < 0
+            && ( (pos.Z() > zmin() && pos.Z() < zmax()) ||
+              (oldpos.Z() > zmin() && oldpos.Z() < zmax()) ) ) {
+          // we've crossed the shell.  Interpolate to the exact crossing
+          double tx = ttest - tstep*fabs(dr/(dr-olddr));
+          // compute the crossing time range
+          auto vel = pktraj.velocity(tx);
+          double dt = rhalf_/vel.Rho();
+          tranges.push_back(KinKal::TimeRange(tx-dt,tx+dt));
+        }
+        olddr = dr;
+      } else {
+        // step by piece until we are heading the right direction
+        vel = pktraj.velocity(ttest);
+        double dt = (zpos() - pos.Z())/vel.Z();
+        while(dt < 0.0 && ttest < pktraj.range().end()){
+          // advance to the end of this piece
+          ttest = pktraj.nearestPiece(ttest).range().end()+tstep;
+          pos = pktraj.position3(ttest);
+          vel = pktraj.velocity(ttest);
+          dt = (zpos() - pos.Z())/vel.Z();
+        }
+        // now advance to a piece that is within 1 step of the z range
+        dt = (vel.Z() > 0) ?  (zmin() - pos.Z())/vel.Z() : (zmax() - pos.Z())/vel.Z();
+        while( dt > tstep && ttest < pktraj.range().end()){
+          ttest = std::min(ttest+dt, pktraj.nearestPiece(ttest).range().end()+tstep);
+          pos = pktraj.position3(ttest);
+          vel = pktraj.velocity(ttest);
+          dt = (vel.Z() > 0) ?  (zmin() - pos.Z())/vel.Z() : (zmax() - pos.Z())/vel.Z();
+        }
       }
-      olddr = dr;
     }
   }
 }

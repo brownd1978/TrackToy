@@ -82,24 +82,9 @@ namespace TrackToy {
   }
 
   template <class KTRAJ> double ztime(KinKal::ParticleTrajectory<KTRAJ>const& pktraj, double tstart, double zpos) {
-    auto istart = pktraj.nearestIndex(tstart);
-// advance till we're going in the correct direction
-    auto index = istart;
-    auto retval = tstart;
-    while(index < pktraj.pieces().size()){
-      auto const& piece = pktraj.piece(index);
-      retval = std::max(tstart,piece.range().begin());
-      auto pos = piece.position3(retval);
-      auto vel = piece.velocity(retval);
-      double dt =(zpos-pos.Z())/vel.Z();
-      if(dt > 0.0){
-        break;
-      }
-      index++;
-    }
-    // now iteratively search for the solution
     size_t ntries(0);
     double dz(1.0e6);
+    double retval(tstart);
     do {
       ++ntries;
       auto pos = pktraj.position3(retval);
@@ -107,10 +92,7 @@ namespace TrackToy {
       retval += (zpos-pos.Z())/vel.Z();
       pos = pktraj.position3(retval);
       dz = fabs(zpos-pos.Z());
-    } while (fabs(dz)>1.0e-6 && retval < pktraj.range().end() && ntries < 100);
-    // last check for failure
-    if(retval < tstart)
-      retval = pktraj.range().end()+1.0e-6;
+    } while (fabs(dz)>1.0e-6 && ntries < 100);
     return retval;
   }
 

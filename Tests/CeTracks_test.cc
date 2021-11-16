@@ -43,6 +43,7 @@
 #include <fstream>
 #include <vector>
 #include <string>
+#include <cstring>
 
 //using namespace TrackToy;
 using namespace std;
@@ -50,7 +51,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --tstep f --npts i --ntrks i --draw i --ttree i --minncells i --printdetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --tstep f --npts i --ntrks i --draw i --ttree i --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -68,8 +69,9 @@ int main(int argc, char **argv) {
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
   double tstep(0.01), tol(0.1);
   double emass(0.511); //electron
+  double cmin(-1.0), cmax(1.0);
   size_t npts(5000);
-  bool draw(false), ttree(true);
+  bool draw(false), ttree(true), saveall(false);
   int minncells(15); // minimum # of hits
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
@@ -82,15 +84,15 @@ int main(int argc, char **argv) {
   int itrk_(0), kkstatus_, kkndof_, kknbf_, kknmat_, kknhit_, kkniter_;
   float kkchisq_, kkprob_;
   VEC3 kkentmom_, kkmidmom_, kkextmom_;
+  VEC3 mcentmom_, mcmidmom_, mcextmom_;
+  VEC3 kkentpos_, kkmidpos_, kkextpos_;
+  VEC3 mcentpos_, mcmidpos_, mcextpos_;
   // fit parameters
   KinKal::DVEC sigmas(0.5, 0.5, 0.5, 0.5, 0.002, 0.5); // expected parameter sigmas for loop helix
   double seedsmear(10.0);
   double dwt(1.0e6);
-  unsigned maxniter(20);
-//  Config::BFCorr bfcorr(Config::variable);
-  Config::BFCorr bfcorr(Config::nocorr);
-  Config::printLevel detail(Config::none);
-//  Config::printLevel detail(Config::minimal);
+  unsigned maxniter(10);
+  Config::printLevel detail(Config::none), faildetail(Config::none);
 
   static struct option long_options[] = {
     {"mustopsfile",     required_argument, 0, 'm' },
@@ -103,9 +105,13 @@ int main(int argc, char **argv) {
     {"tstep",     required_argument, 0, 's'  },
     {"ntrks",     required_argument, 0, 'n'  },
     {"draw",     required_argument, 0, 'd'  },
+    {"saveall",     required_argument, 0, 'S'  },
     {"ttree",     required_argument, 0, 'r'  },
     {"minncells",     required_argument, 0, 'M' },
     {"printdetail",     required_argument, 0, 'p' },
+    {"faildetail",     required_argument, 0, 'f' },
+    {"cmin",     required_argument, 0, 'c' },
+    {"cmax",     required_argument, 0, 'C' },
     {NULL, 0,0,0}
   };
   int opt;
@@ -135,11 +141,19 @@ int main(int argc, char **argv) {
                  break;
       case 'd' : draw = atoi(optarg);
                  break;
+      case 'S' : saveall = atoi(optarg);
+                 break;
       case 'r' : ttree = atoi(optarg);
                  break;
       case 'M' : minncells = atoi(optarg);
                  break;
       case 'p' : detail = (Config::printLevel)atoi(optarg);
+                 break;
+      case 'f' : faildetail = (Config::printLevel)atoi(optarg);
+                 break;
+      case 'c' : cmin = atof(optarg);
+                 break;
+      case 'C' : cmax = atof(optarg);
                  break;
       default: print_usage();
                exit(EXIT_FAILURE);
@@ -160,15 +174,24 @@ int main(int argc, char **argv) {
   MatEnv::SimpleFileFinder ttfinder(std::string("TRACKTOY_SOURCE_DIR"),std::string("/Data/"));
   cout << "Using Materials file " << ttfinder.matMtrDictionaryFileName() << endl;
   MatEnv::MatDBInfo matdb_(ttfinder,MatEnv::DetMaterial::moyalmean);
-  // setup BField
+  BFieldMap* bfield(0);
+  Config::BFCorr bfcorr(Config::variable);
   FileFinder filefinder;
   std::string fullfile = filefinder.fullFile(bfile);
-  cout << "Building BField from file " << fullfile << endl;
-  AxialBFieldMap bfield(fullfile);
-//  UniformBFieldMap bfield(1.0);
-//  GradientBFieldMap bfield(1.04,1.00, -1500,1500);
+  if(strncmp(bfile.c_str(),"Fixed",5) == 0){
+    cout << "Building fixed BField"<< endl;
+    bfield = new UniformBFieldMap(1.0);
+    bfcorr = Config::nocorr;
+  } else if(strncmp(bfile.c_str(),"Grad",4) == 0) {
+    cout << "Building gradient BField"<< endl;
+    bfield = new GradientBFieldMap(1.04,1.00, -1500,1500);
+  } else {
+    // setup BField
+    cout << "Building BField from file " << fullfile << endl;
+    bfield = new AxialBFieldMap(fullfile);
+  }
 
-  bfield.print(cout);
+  bfield->print(cout);
   // setup target
   Target target(targetfile);
   target.print(cout);
@@ -227,15 +250,21 @@ int main(int argc, char **argv) {
     cetree_->Branch("cet",&cet_,"cet/F");
     cetree_->Branch("ntarget",&ntarget_,"ntarget/I");
     cetree_->Branch("targetde",&targetde_,"targetde/F");
-    cetree_->Branch("npieces",&npieces_,"npieces/I");
+    cetree_->Branch("targete",&targete_,"targete/F");
+    cetree_->Branch("ipae",&ipae_,"ipae/F");
     cetree_->Branch("nipa",&nipa_,"nipa/I");
     cetree_->Branch("ipade",&ipade_,"ipade/F");
+    cetree_->Branch("npieces",&npieces_,"npieces/I");
     cetree_->Branch("ntrackerarcs",&ntrackerarcs_,"ntrackerarcs/I");
     cetree_->Branch("ntrackercells",&ntrackercells_,"ntrackercells/I");
     cetree_->Branch("trackere",&trackere_,"trackere/F");
     cetree_->Branch("trackerde",&trackerde_,"trackerde/F");
-    cetree_->Branch("targete",&targete_,"targete/F");
-    cetree_->Branch("ipae",&ipae_,"ipae/F");
+    cetree_->Branch("mcentmom",&mcentmom_);
+    cetree_->Branch("mcmidmom",&mcmidmom_);
+    cetree_->Branch("mcextmom",&mcextmom_);
+    cetree_->Branch("mcentpos",&mcentpos_);
+    cetree_->Branch("mcmidpos",&mcmidpos_);
+    cetree_->Branch("mcextpos",&mcextpos_);
     cetree_->Branch("kkstatus",&kkstatus_,"kkstatus/I");
     cetree_->Branch("kkndof",&kkndof_,"kkndof/I");
     cetree_->Branch("kknbf",&kknbf_,"kknbf/I");
@@ -243,6 +272,12 @@ int main(int argc, char **argv) {
     cetree_->Branch("kknmat",&kknmat_,"kknmat/I");
     cetree_->Branch("kkchisq",&kkchisq_,"kkchisq/F");
     cetree_->Branch("kkprob",&kkprob_,"kkprob/F");
+    cetree_->Branch("kkentmom",&kkentmom_);
+    cetree_->Branch("kkmidmom",&kkmidmom_);
+    cetree_->Branch("kkextmom",&kkextmom_);
+    cetree_->Branch("kkentpos",&kkentpos_);
+    cetree_->Branch("kkmidpos",&kkmidpos_);
+    cetree_->Branch("kkextpos",&kkextpos_);
   }
 
   std::vector<TPolyLine3D*> plhel;
@@ -262,10 +297,16 @@ int main(int argc, char **argv) {
     // reset tree variables
     targetde_ = ipade_ = trackerde_ = 1.0;
     targete_ = ipae_ = -1.0;
-    nipa_ = ntrackerarcs_ = ntrackercells_ = -1;
+    npieces_ = ntarget_ = nipa_ = ntrackerarcs_ = ntrackercells_ = -1;
     kkndof_ = kknbf_ = kknmat_ = kknhit_ = kkniter_ = -1;
     kkchisq_ = kkprob_ = -1.0;
     kkentmom_ = kkmidmom_ = kkextmom_ = VEC3();
+    mcentmom_ = mcmidmom_ = mcextmom_ = VEC3();
+    kkentpos_ = kkmidpos_ = kkextpos_ = VEC3();
+    mcentpos_ = mcmidpos_ = mcextpos_ = VEC3();
+    kkstatus_ = KinKal::Status::unfit;
+    kkchisq_ = kkprob_ = -1;
+    kkndof_ = kknbf_ = kknhit_ = kknmat_ = 0;
 
     // generate a random CeEndpoint momentum; for now, use the endpoint energy, could use spectrum TODO
     cee_ = cespect.params().EEnd_;
@@ -273,9 +314,9 @@ int main(int argc, char **argv) {
     double tdecay = tr_.Exp(lifetime);
     // generate random phi and cos(theta)
     double phi = tr_.Uniform(-M_PI,M_PI);
-//    double cost = tr_.Uniform(0.6,0.9);
-    double cost = tr_.Uniform(-1.0,1.0);
-//    double cost = 0.7;
+    //    double cost = tr_.Uniform(0.6,0.9);
+    double cost = tr_.Uniform(cmin,cmax);
+    //    double cost = 0.7;
     double sint = sqrt(1.0-cost*cost);
     VEC4 const& pos4 = *mustoppos;
     cepos_ = pos4.Vect();
@@ -284,70 +325,86 @@ int main(int argc, char **argv) {
     cemom_ = VEC3(mom*sint*cos(phi),mom*sint*sin(phi),mom*cost);
     ParticleState cestate(cepos_,cemom_,cet_,emass,-1);
     TimeRange range(cestate.time(),cestate.time()+1000.0); // much longer than physical: is truncated later
-    auto bstart = bfield.fieldVect(cestate.position3());
+    auto bstart = bfield->fieldVect(cestate.position3());
     KTRAJ lhelix(cestate,bstart,range);
     //    cout << "Initial trajectory " << lhelix << endl;
     // initialize piecetraj
-    PKTRAJ pktraj(lhelix);
+    PKTRAJ mctraj(lhelix);
     TimeRanges targetinters, ipainters, trackerinters;
     // extend through the target
-    if(target.extendTrajectory(bfield,pktraj,targetinters)){
-//      cout << "Extended to target " << targetinters.size() << endl;
-//      pktraj.print(cout,2);
-      targete_ = pktraj.energy(pktraj.range().end());
+    if(target.extendTrajectory(*bfield,mctraj,targetinters)){
+      //      cout << "Extended to target " << targetinters.size() << endl;
+      //      mctraj.print(cout,2);
+      targete_ = mctraj.energy(mctraj.range().end());
       targetde_ = targete_ - cee_;
       ntarget_ = targetinters.size();
       // extend through the IPA
-      if(ipa.extendTrajectory(bfield,pktraj,ipainters)){
-//        cout << "Extended to ipa " << ipainters.size() << endl;
-//        pktraj.print(cout,2);
+      if(ipa.extendTrajectory(*bfield,mctraj,ipainters)){
+        //        cout << "Extended to ipa " << ipainters.size() << endl;
+        //        mctraj.print(cout,2);
         nipa_ = ipainters.size();
-        ipae_ = pktraj.energy(pktraj.range().end());
+        ipae_ = mctraj.energy(mctraj.range().end());
         ipade_ = ipae_ - targete_;
         // extend through tracker, and create the material xings and hits
         std::vector<double> htimes;
         std::vector<std::shared_ptr<Hit<KTRAJ>>> hits;
         std::vector<std::shared_ptr<ElementXing<KTRAJ>>> xings;
-        double speed = pktraj.speed(pktraj.range().end());
-        tracker.simulateHits(bfield,pktraj,hits,xings,trackerinters,htimes);
+        double speed = mctraj.speed(mctraj.range().end());
+        tracker.simulateHits(*bfield,mctraj,hits,xings,trackerinters,htimes);
         ntrackercells_ = htimes.size();
         ntrackerarcs_ = trackerinters.size();
+        npieces_ = mctraj.pieces().size();
         if(ntrackercells_ > minncells){
 //          cout << "Extended to tracker " << trackerinters.size() << endl;
-//          pktraj.print(cout,2);
+//          mctraj.print(cout,2);
 // calcluate the estart energy loss
           double trackerpath(0.0);
           double ke = cestate.energy() - cestate.mass();
           for(auto const& inter : trackerinters) { trackerpath += speed*inter.range(); }
           trackerde_ = -100*trackerEStar.dEIonization(ke)*tracker.density()*trackerpath; // unit conversion
-          trackere_ = pktraj.energy(pktraj.range().end());
+          trackere_ = mctraj.energy(mctraj.range().end());
           tarde->Fill(targetde_);
           ipade->Fill(ipade_);
           trkde->Fill(trackerde_);
           trknc->Fill(ntrackercells_);
           // add calo hits TODO
           // truncate the true trajectory
-          pktraj.setRange(TimeRange(pktraj.range().begin(),pktraj.back().range().begin()+0.01));
+          mctraj.setRange(TimeRange(mctraj.range().begin(),mctraj.back().range().begin()+0.01));
+          // get the true times at entrance and exit
+          double mctent = ztime(mctraj,trackerinters.front().begin(),tracker.zMin());
+          double mctext = ztime(mctraj,trackerinters.back().end(),tracker.zMax());
+          double mctmid = ztime(mctraj,0.5*(mctent+mctext),tracker.zMid());
+          // record true momentum at tracker entranc, mid, and exit
+          auto entstate = mctraj.stateEstimate(mctent);
+          auto midstate = mctraj.stateEstimate(mctmid);
+          auto extstate = mctraj.stateEstimate(mctext);
+          mcentmom_ = entstate.momentum3();
+          mcmidmom_ = midstate.momentum3();
+          mcextmom_ = extstate.momentum3();
+          mcentpos_ = entstate.position3();
+          mcmidpos_ = midstate.position3();
+          mcextpos_ = extstate.position3();
+
           // reconstruct track from hits and material info
-          auto seedtraj = pktraj.nearestPiece(0.5*(htimes.front()+htimes.back()));
+          auto seedtraj = mctraj.nearestPiece(0.5*(htimes.front()+htimes.back()));
+          seedtraj.setRange(mctraj.range());
           for(size_t ipar=0; ipar < NParams(); ipar++){
             double perr = sigmas[ipar]*seedsmear;
             seedtraj.params().covariance()[ipar][ipar] = perr*perr;
-//            seedtraj.params().parameters()[ipar] += tr_.Gaus(0.0,perr);
+            seedtraj.params().parameters()[ipar] += tr_.Gaus(0.0,perr);
           }
           if(config.plevel_ > Config::none) {
-//            cout << "Front traj " << pktraj.nearestPiece(htimes.front());
-//            cout << "Back traj " << pktraj.nearestPiece(htimes.back());
-            cout << "Seed traj " << seedtraj;
+            //            cout << "Front traj " << mctraj.nearestPiece(htimes.front());
+            //            cout << "Back traj " << mctraj.nearestPiece(htimes.back());
+            //            cout << "Seed traj " << seedtraj;
           }
-          KKTRK kktrk(config,bfield,seedtraj,hits,xings);
+          KKTRK kktrk(config,*bfield,seedtraj,hits,xings);
           // fill fit information
           auto const& fstat = kktrk.fitStatus();
           kkstatus_ = fstat.status_;
           kkchisq_ = fstat.chisq_.chisq();
           kkprob_ = fstat.chisq_.probability();
           kkndof_ = fstat.chisq_.nDOF();
-          kknbf_ = 0; kknhit_ = 0; kknmat_ = 0;
           for(auto const& eff: kktrk.effects()) {
             const KKHIT* kkhit = dynamic_cast<const KKHIT*>(eff.get());
             const KKBF* kkbf = dynamic_cast<const KKBF*>(eff.get());
@@ -361,34 +418,44 @@ int main(int argc, char **argv) {
             }
           }
           if(fstat.usable()){
-            auto const& fptraj = kktrk.fitTraj();
-            double tstart = fptraj.range().begin();
-            auto entstate = fptraj.stateEstimate(ztime(fptraj,tstart,tracker.zMin()));
-            auto midstate = fptraj.stateEstimate(ztime(fptraj,tstart,0.0));
-            auto extstate = fptraj.stateEstimate(ztime(fptraj,tstart,tracker.zMax()));
+            auto const& kktraj = kktrk.fitTraj();
+            double kktent = ztime(kktraj,kktraj.range().begin(),tracker.zMin());
+            double kktext = ztime(kktraj,kktraj.range().end(),tracker.zMax());
+            double kktmid = ztime(kktraj,0.5*(kktent+kktext),tracker.zMid());
+            auto entstate = kktraj.stateEstimate(kktent);
+            auto midstate = kktraj.stateEstimate(kktmid);
+            auto extstate = kktraj.stateEstimate(kktext);
             kkentmom_ = entstate.momentum3();
             kkmidmom_ = midstate.momentum3();
             kkextmom_ = extstate.momentum3();
+            kkentpos_ = entstate.position3();
+            kkmidpos_ = midstate.position3();
+            kkextpos_ = extstate.position3();
+          } else if(faildetail > Config::none) {
+            cout << "Bad Fit event " << itrk_ << " status " << kktrk.fitStatus() << endl;
+            cout << "True Traj " << mctraj << endl;
+            cout << "Seed Traj " << seedtraj << endl;
+            kktrk.print(cout,faildetail);
           }
 
-//          cetree_->Fill();
+          if(!saveall)cetree_->Fill();
           //
           if(draw){
             plhel.push_back(new TPolyLine3D(npts));
             plhel.back()->SetLineColor(icolor++%10);
-            double tstart = pktraj.range().begin();
-            double ts = pktraj.range().range()/(npts-1);
+            double tstart = mctraj.range().begin();
+            double ts = mctraj.range().range()/(npts-1);
             VEC3 ppos;
             for(unsigned ipt=0;ipt<npts;ipt++){
               double t = tstart + ipt*ts;
-              ppos = pktraj.position3(t);
+              ppos = mctraj.position3(t);
               plhel.back()->SetPoint(ipt,ppos.X(),ppos.Y(),ppos.Z());
             }
           }
         } // particle hits the tracker
       } // particle stops in IPA
     } // particle exits the target going downstream
-    cetree_->Fill();
+    if(saveall)cetree_->Fill();
   }
   // Canvas of basic parameters
   TCanvas* ctrkcan = new TCanvas("CeTrack");
@@ -439,7 +506,7 @@ int main(int argc, char **argv) {
     rulers->GetYaxis()->SetLabelColor(kCyan);
     rulers->GetZaxis()->SetAxisColor(kOrange);
     rulers->GetZaxis()->SetLabelColor(kOrange);
-    rulers->SetAxisRange(bfield.zMin(),tracker.cylinder().zmax(),"Z");
+    rulers->SetAxisRange(bfield->zMin(),tracker.cylinder().zmax(),"Z");
     rulers->Draw();
     cetcan->Write();
   }
