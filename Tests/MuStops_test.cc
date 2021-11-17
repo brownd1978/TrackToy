@@ -78,6 +78,7 @@ int main(int argc, char **argv) {
   }
   // not sure why this is necessary...
   gSystem->Load("lib/libTests.dylib");
+//  gSystem->Load("lib/libTests.so");
   if(mbfile.size()==0){
     cout << "No input muon beam file specified: terminating" << endl;
     return 1;
@@ -105,7 +106,7 @@ int main(int argc, char **argv) {
   // muon range table
   MuonRange muonrange(rfile.c_str(),target.density());
   cout << " muon range file " << rfile << " has density " << muonrange.density() << " and ranges " << muonrange.rangeData().size() << endl;
-  unsigned itrk(0);
+  int itrk(0);
   // create a TTree for the output
   TFile mustopfile("MuStops.root","RECREATE");
   KinKal::VEC4 stoppos;

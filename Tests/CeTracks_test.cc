@@ -51,7 +51,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --tstep f --npts i --ntrks i --draw i --ttree i --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
   string sfile("Data/Schedule.txt"); // fit schedule
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
-  double tstep(0.01), tol(0.01);
+  double tol(0.01);
   double emass(0.511); //electron
   double cmin(-1.0), cmax(1.0);
   size_t npts(5000);
@@ -75,7 +75,7 @@ int main(int argc, char **argv) {
   int minncells(15); // minimum # of hits
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
-  TTree* cetree_;
+  TTree* cetree_(0);
   float targetde_, ipade_, trackerde_;
   float cee_, targete_, ipae_, trackere_;
   VEC3 cepos_, cemom_;
@@ -102,7 +102,6 @@ int main(int argc, char **argv) {
     {"ipafile",     required_argument, 0, 'i' },
     {"endpoint",     required_argument, 0, 'e' },
     {"tol",     required_argument, 0, 'x' },
-    {"tstep",     required_argument, 0, 's'  },
     {"ntrks",     required_argument, 0, 'n'  },
     {"draw",     required_argument, 0, 'd'  },
     {"saveall",     required_argument, 0, 'S'  },
@@ -132,8 +131,6 @@ int main(int argc, char **argv) {
       case 'e' : endpoint = atof(optarg);
                  break;
       case 'x' : tol = atof(optarg);
-                 break;
-      case 's' : tstep = atof(optarg);
                  break;
       case 'N' : npts = atoi(optarg);
                  break;

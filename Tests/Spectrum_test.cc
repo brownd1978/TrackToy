@@ -29,7 +29,7 @@ int main(int argc, char **argv) {
   size_t nsample(100000), ntest(100000);
   double endpoint(105.0); // this should be specified by material FIXME
   string file("Data/DIOAl_fine.dat");
-  int stype;
+  int stype(Spectrum::DIO);
 
   static struct option long_options[] = {
     {"file",     required_argument, 0, 'f' },
@@ -112,7 +112,7 @@ int main(int argc, char **argv) {
   specthist->SetStats(0);
   TRandom3 tr_; // random number generator
   double weight(specthist->GetNbinsX()/( spect->normalization()*ntest*(spect->eMax()-spect->eMin())));
-  for(int itest=0; itest<ntest; ++itest){
+  for(unsigned itest=0; itest<ntest; ++itest){
     double prob = tr_.Uniform();
     double energy = spect->sample(prob);
     specthist->Fill(energy,weight);
