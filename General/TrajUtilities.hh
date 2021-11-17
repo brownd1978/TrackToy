@@ -32,19 +32,19 @@ namespace TrackToy {
       pktraj.append(newtraj,true);
       return true;
     } else {
-    // terminate the particle here
+      // terminate the particle here
       KinKal::TimeRange range(pktraj.range().begin(),time);
       pktraj.setRange(range, true);
       return false;
     }
   }
 
-  // extend a trajector to the given range for the given BField to the given z range
-  template<class KTRAJ> double extendZ(KinKal::ParticleTrajectory<KTRAJ>& pktraj, KinKal::BFieldMap const& bfield, double zmin, double zmax,double tol) {
+  // extend a trajectory forwards (in z) to the given z value for the given BField to the given z value
+  template<class KTRAJ> bool extendZ(KinKal::ParticleTrajectory<KTRAJ>& pktraj, KinKal::BFieldMap const& bfield, double zmax,double tol) {
     double tstart = pktraj.pieces().back().range().begin();
     auto pos = pktraj.position3(tstart);
     KinKal::TimeRange range(tstart, pktraj.range().end());
-    while(pos.Z() < zmax && pos.Z() > zmin){
+    while(pos.Z() < zmax && pos.Z() > bfield.zMin() && pos.Z() < bfield.zMax() && range.begin() < range.end() ){
       range.begin() = bfield.rangeInTolerance(pktraj.back(),range.begin(),tol);
       if(range.begin() < range.end()){
         // Predict new position and momentum at this end, making linear correction for BField effects
@@ -52,43 +52,48 @@ namespace TrackToy {
         pos = pstate.position3();
         auto bend = bfield.fieldVect(pos);
         KTRAJ endtraj(pstate,bend,range);
-//        std::cout << "appending " << range << " to range " << pktraj.range() << std::endl;
+        //        std::cout << "appending " << range << " to range " << pktraj.range() << std::endl;
         pktraj.append(endtraj);
         //        cout << "appended helix at point " << pos << " time " << range.begin() << endl;
       } else {
-        //        cout << "ranged out " << endl;
+        pos = pktraj.position3(range.end());
+      }
+    }
+    return pos.Z() >= zmax;
+  }
+
+  template <class KTRAJ> void extendTraj(KinKal::BFieldMap const& bfield, KinKal::ParticleTrajectory<KTRAJ>& pktraj,double extime,double tol) {
+    double tstart = pktraj.back().range().begin();
+    KinKal::TimeRange range(tstart,pktraj.range().end());
+    while(range.begin() < extime){
+      range.begin() = bfield.rangeInTolerance(pktraj.back(),range.begin(),tol);
+      if(range.begin() < range.end()){
+        auto pstate = pktraj.back().state(range.begin());
+        auto pos = pstate.position3();
+        auto bend = bfield.fieldVect(pos);
+        KTRAJ endtraj(pstate,bend,range);
+        //        std::cout << "appending " << range << " to range " << pktraj.range() << std::endl;
+        pktraj.append(endtraj);
+      } else {
         break;
       }
     }
-    return pos.Z();
   }
 
-  template<class KTRAJ> double timeStep(KinKal::ParticleTrajectory<KTRAJ>const& pktraj, double zmin, double zmax, double tstart, double tstep) {
-    double ttest = tstart;
-    auto pos = pktraj.position3(ttest);
-    double zpos = 0.5*(zmin+zmax);
-    if(pos.Z() > zmin && pos.Z() < zmax){
-      // take small steps if we're in the right z range
-      ttest += tstep;
-    } else {
-      // step through the pieces till we are going in the right direction
-      auto vel = pktraj.velocity(ttest);
-      while ( (pos.Z()-zpos)*vel.z() > 0.0 && ttest < pktraj.range().end() ){
-	auto const& piece = pktraj.nearestPiece(ttest);
-	ttest = piece.range().end() + tstep;
-	pos = pktraj.position3(ttest);
-	vel = pktraj.velocity(ttest);
-      }
-      // step through the pieces till we're in the right z range
-      while( ttest < pktraj.range().end() &&
-	  ((vel.Z() > 0.0 && pos.Z() < zmin) ||
-	   (vel.Z() < 0.0 && pos.Z() > zmax)) ){
-	auto const& piece = pktraj.nearestPiece(ttest);
-	ttest = piece.range().end() + tstep;
-	pos = pktraj.position3(ttest);
-      }
-    }
-    return ttest;
+  template <class KTRAJ> double ztime(KinKal::ParticleTrajectory<KTRAJ>const& pktraj, double tstart, double zpos) {
+    size_t ntries(0);
+    double dz(1.0e6);
+    double retval(tstart);
+    do {
+      ++ntries;
+      auto pos = pktraj.position3(retval);
+      auto vel = pktraj.velocity(retval);
+      retval += (zpos-pos.Z())/vel.Z();
+      pos = pktraj.position3(retval);
+      dz = fabs(zpos-pos.Z());
+    } while (fabs(dz)>1.0e-6 && ntries < 100);
+    return retval;
   }
+
 }
 #endif

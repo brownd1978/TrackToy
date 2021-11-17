@@ -8,14 +8,19 @@
 #include <sstream>
 #include <regex>
 #include <stdexcept>
+
 namespace TrackToy {
-  Tracker::Tracker(std::string const& tgtfile): ncells_(0), cellArea_(-1.0), cellDensity_(-1.0), activeDensity_(-1.0), gain_(-1.0) {
+  Tracker::Tracker(MatEnv::MatDBInfo const& matdbinfo,std::string const& tgtfile):
+    ncells_(0), cellDensity_(-1.0), density_(-1.0), smat_(0),
+    vdrift_(-1.0), vprop_(-1.0), sigt_(-1.0), sigl_(-1.0)
+  {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(tgtfile);
     std::string line;
     static std::string comment("#");
     std::ifstream tgt_stream(fullfile);
     double rmin(-1.0), rmax(-1.0), zpos(-1.0), zhalf(-1.0);
+    double rcell(-1.0), lcell(-1.0), rwire(-1.0), wthick(-1.0);
     unsigned orient(0);
     while (std::getline(tgt_stream, line)) {
       // skip comments and blank lines
@@ -23,31 +28,42 @@ namespace TrackToy {
         // strip leading whitespace
         line = std::regex_replace(line, std::regex("^ +"), "");
         std::istringstream iss(line);
-        iss >> rmin >> rmax >> zpos >> zhalf >> density_ >> ncells_ >> orient >> cellArea_ >> activeDensity_ >> gain_;
-        break;
+        // first, overall geometry
+        if(rmin < 0.0){
+          iss >> rmin >> rmax >> zpos >> zhalf;
+          cyl_ = HollowCylinder(rmin,rmax,zpos,zhalf);
+        } else if(rcell < 0.0) {
+          // then cell description
+          iss >> orient >> ncells_ >> rcell >> lcell >> wthick >> rwire ;
+          std::cout << "ncells " << ncells_  << " rcell " << rcell << " lcell " << lcell << " wthick " << wthick << " rwire " << rwire << std::endl;
+          if(rcell<0.0)throw std::invalid_argument("Invalid cell parameters");
+          smat_ = new KinKal::StrawMaterial(matdbinfo, rcell, wthick, rwire);
+          orientation_ = (CellOrientation)orient;
+          // cell density (transverse to the cell)
+          cellDensity_ = ncells_*2.0*rcell*lcell/cyl_.volume();
+          // compute the total mass of 1 cell
+          double cmass = smat_->wallMaterial().density()*2.0*M_PI*rcell*lcell*wthick
+            + smat_->gasMaterial().density()*M_PI*rcell*rcell*lcell
+            + smat_->wireMaterial().density()*M_PI*rwire*rwire*lcell;
+          density_ = cmass*ncells_/cyl_.volume();
+        } else if(vdrift_ < 0.0){
+          // hit properties
+          iss >> vdrift_ >> vprop_ >> sigt_ >> sigl_;
+        }
       }
     }
-    orientation_ = (CellOrientation)orient;
-    cyl_ = HollowCylinder(rmin,rmax,zpos,zhalf);
-    cellDensity_ = (float)ncells_/cyl_.volume();
-  }
-  double Tracker::nCells(double speed, TimeRanges const& tranges) const {
-    double retval(0.0);
-    if(tranges.size()>0){
-      double path(0.0);
-      for(auto const& range : tranges) path += range.range()*speed;
-      retval = cellDensity_*path*cellArea_;
-    }
-    return retval;
   }
 
   void Tracker::print(std::ostream& os ) const {
-    std::cout << "Tracker between " << cyl_.zmin() << " and " << cyl_.zmax() << " rmin " << cyl_.rmin() << " rmax " << cyl_.rmax()
-    << " material density " << density_ << " with " << ncells_ << " cells oriented ";
-    if(orientation_ == radial)
-      std::cout << " radially " << std::endl;
+    std::cout << "Tracker Z between " << zMin() << " and " << zMax() << " Rho between " << rMin() << " and " << rMax()
+      << " average material density (gm/mm^3)" << density_ << std::endl;
+    std::cout << "Cell density (cells/mm) " << cellDensity_ << " with " << ncells_ << " cells oriented ";
+    if(orientation_ == azimuthal)
+      std::cout << " azimuthally " << std::endl;
     else
       std::cout << " axially " << std::endl;
+    std::cout << "Cell radius " << cellRadius() << " wall thickness " << smat_->wallThickness() << std::endl;
+    std::cout << "Vdrift " << vdrift_ << " Vprop " << vprop_ << " transverse resolution " << sigt_ << " longitudinal resolution " << sigl_ << std::endl;
   }
 }
 

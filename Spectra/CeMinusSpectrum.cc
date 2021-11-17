@@ -24,7 +24,6 @@ namespace TrackToy {
       double rv = rate(energy)*norm_;
       cdf_.push_back(pcdf + rv*eStep_);
     }
-    std::cout << " Emax " << eMax_ << " Emin " << eMin_ << " Norm " << norm_ << " CDF diff " << cdf_.back()-1.0 << std::endl;
   }
 
   double CeMinusSpectrum::rate(double energy) const {
