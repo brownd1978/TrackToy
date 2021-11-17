@@ -78,10 +78,12 @@ namespace TrackToy {
       std::vector<KinKal::TimeRange>& tinters, std::vector<double>& htimes) const {
     double tstart = pktraj.back().range().begin();
     double speed = pktraj.speed(tstart);
-    double tol = 3.0/speed;
+//    double tol = 3.0/speed;
+    double tol (1.0e-4);
+//    double tol (0.1);
     double tstep = cellRadius()/speed;
     // extend through the tracker to get the ranges
-    bool extend = extendZ(pktraj,bfield, cylinder().zmax(), tol);
+    bool extend = extendZ(pktraj,bfield, cylinder().zmin(), tol);
     if(extend){
       // find intersections with tracker
       cylinder().intersect(pktraj,tinters,tstart,tstep);
@@ -245,8 +247,8 @@ namespace TrackToy {
     // generate a new piece and append
     KinKal::VEC3 bnom = bfield.fieldVect(endpos.Vect());
     KTRAJ newend(endpos,endmom,endpiece.charge(),bnom,KinKal::TimeRange(txing,pktraj.range().end()));
-    pktraj.append(newend);
-//    pktraj.append(newend,true); // allow truncation if needed
+//    pktraj.append(newend);
+    pktraj.append(newend,true); // allow truncation if needed
   }
 
 }

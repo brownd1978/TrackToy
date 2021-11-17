@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
   string sfile("Data/Schedule.txt"); // fit schedule
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
-  double tstep(0.01), tol(0.1);
+  double tstep(0.01), tol(0.01);
   double emass(0.511); //electron
   double cmin(-1.0), cmax(1.0);
   size_t npts(5000);
@@ -192,6 +192,7 @@ int main(int argc, char **argv) {
   }
 
   bfield->print(cout);
+
   // setup target
   Target target(targetfile);
   target.print(cout);
@@ -202,6 +203,10 @@ int main(int argc, char **argv) {
   Tracker tracker(matdb_,trackerfile);
   tracker.print(cout);
   EStar trackerEStar(efile_my);
+  // nominal fixed field for tracking: temporary kludge FIXME
+  auto bent = bfield->fieldVect(VEC3(0.0,0.0,tracker.zMin()));
+  BFieldMap* trkfield = new UniformBFieldMap(bent.Z());
+//  auto trkfield = bfield;
   // setup fit configuration
   Config config;
   config.dwt_ = dwt;
@@ -345,12 +350,20 @@ int main(int argc, char **argv) {
         nipa_ = ipainters.size();
         ipae_ = mctraj.energy(mctraj.range().end());
         ipade_ = ipae_ - targete_;
-        // extend through tracker, and create the material xings and hits
+        // extend  to the tracker
+    // extend through the tracker to get the ranges
+        extendZ(mctraj,*bfield, tracker.zMin()-1.0, tol);// append a fixed-field trajectory; this is a temporary kludge FIXME
+        double trkent = ztime(mctraj,mctraj.back().range().begin(),tracker.zMin());
+        auto endstate = mctraj.back().state(trkent);
+        auto bnom = trkfield->fieldVect(endstate.position3());
+        KTRAJ endtraj(endstate,bnom,KinKal::TimeRange(trkent,mctraj.range().end()));
+        mctraj.append(endtraj,true); // need to understand why truncation is needed FIXME
+        ////
         std::vector<double> htimes;
         std::vector<std::shared_ptr<Hit<KTRAJ>>> hits;
         std::vector<std::shared_ptr<ElementXing<KTRAJ>>> xings;
         double speed = mctraj.speed(mctraj.range().end());
-        tracker.simulateHits(*bfield,mctraj,hits,xings,trackerinters,htimes);
+        tracker.simulateHits(*trkfield,mctraj,hits,xings,trackerinters,htimes);
         ntrackercells_ = htimes.size();
         ntrackerarcs_ = trackerinters.size();
         npieces_ = mctraj.pieces().size();
@@ -398,7 +411,7 @@ int main(int argc, char **argv) {
             //            cout << "Back traj " << mctraj.nearestPiece(htimes.back());
             //            cout << "Seed traj " << seedtraj;
           }
-          KKTRK kktrk(config,*bfield,seedtraj,hits,xings);
+          KKTRK kktrk(config,*trkfield,seedtraj,hits,xings);
           // fill fit information
           auto const& fstat = kktrk.fitStatus();
           kkstatus_ = fstat.status_;

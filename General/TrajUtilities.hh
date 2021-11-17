@@ -64,13 +64,12 @@ namespace TrackToy {
 
   template <class KTRAJ> void extendTraj(KinKal::BFieldMap const& bfield, KinKal::ParticleTrajectory<KTRAJ>& pktraj,double extime,double tol) {
     double tstart = pktraj.back().range().begin();
-    KinKal::TimeRange range(tstart, pktraj.range().end());
-    auto pos = pktraj.position3(tstart);
+    KinKal::TimeRange range(tstart,pktraj.range().end());
     while(range.begin() < extime){
       range.begin() = bfield.rangeInTolerance(pktraj.back(),range.begin(),tol);
       if(range.begin() < range.end()){
         auto pstate = pktraj.back().state(range.begin());
-        pos = pstate.position3();
+        auto pos = pstate.position3();
         auto bend = bfield.fieldVect(pos);
         KTRAJ endtraj(pstate,bend,range);
         //        std::cout << "appending " << range << " to range " << pktraj.range() << std::endl;
