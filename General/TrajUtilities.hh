@@ -44,7 +44,7 @@ namespace TrackToy {
     double tstart = pktraj.pieces().back().range().begin();
     auto pos = pktraj.position3(tstart);
     KinKal::TimeRange range(tstart, pktraj.range().end());
-    while(pos.Z() < zmax && pos.Z() > bfield.zMin() && pos.Z() < bfield.zMax() && range.begin() < range.end() ){
+    while(pos.Z() < zmax && bfield.inRange(pos) && range.begin() < range.end() ){
       range.begin() = bfield.rangeInTolerance(pktraj.back(),range.begin(),tol);
       if(range.begin() < range.end()){
         // Predict new position and momentum at this end, making linear correction for BField effects

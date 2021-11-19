@@ -516,7 +516,7 @@ int main(int argc, char **argv) {
     rulers->GetYaxis()->SetLabelColor(kCyan);
     rulers->GetZaxis()->SetAxisColor(kOrange);
     rulers->GetZaxis()->SetLabelColor(kOrange);
-    rulers->SetAxisRange(bfield->zMin(),tracker.cylinder().zmax(),"Z");
+    rulers->SetAxisRange(target.cylinder().zmin(),tracker.cylinder().zmax(),"Z");
     rulers->Draw();
     cetcan->Write();
   }
