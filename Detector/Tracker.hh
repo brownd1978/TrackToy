@@ -69,6 +69,7 @@ namespace TrackToy {
       double sigt_; // transverse measurement time resolution sigma
       double sigl_; // longitudinal measurement time resolution sigma
       double lrdoca_; // minimum doca to resolve LR ambiguity
+      double hiteff_; // hit efficiency
       mutable TRandom3 tr_; // random number generator
   };
 
@@ -145,9 +146,12 @@ namespace TrackToy {
     KinKal::WireHitState::Dimension dim(KinKal::WireHitState::time);
     double nullvar = (cellRadius()*cellRadius())/3.0;
     KinKal::WireHitState whstate(ambig, dim, nullvar, 0.0);
+    // test for inefficiency
+    double eff = tr_.Uniform(0.0,1.0);
+    if(eff < hiteff_)
     // create the hit
-    hits.push_back(std::make_shared<WIREHIT>(bfield, tp, whstate, vdrift_, sigt_*sigt_, cellRadius()));
-    // create the straw xing
+      hits.push_back(std::make_shared<WIREHIT>(bfield, tp, whstate, vdrift_, sigt_*sigt_, cellRadius()));
+    // create the straw xing (regardless of inefficiency)
     auto xing = std::make_shared<STRAWXING>(tp,*smat_);
     xings.push_back(xing);
   }
