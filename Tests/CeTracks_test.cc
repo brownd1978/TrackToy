@@ -51,7 +51,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -72,6 +72,7 @@ int main(int argc, char **argv) {
   double cmin(-1.0), cmax(1.0);
   size_t npts(5000);
   bool draw(false), ttree(true), saveall(false);
+  string tfile("CeTracks.root");
   int minncells(15); // minimum # of hits
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
@@ -106,6 +107,7 @@ int main(int argc, char **argv) {
     {"draw",     required_argument, 0, 'd'  },
     {"saveall",     required_argument, 0, 'S'  },
     {"ttree",     required_argument, 0, 'r'  },
+    {"tfile",     required_argument, 0, 'R'  },
     {"minncells",     required_argument, 0, 'M' },
     {"printdetail",     required_argument, 0, 'p' },
     {"faildetail",     required_argument, 0, 'f' },
@@ -141,6 +143,8 @@ int main(int argc, char **argv) {
       case 'S' : saveall = atoi(optarg);
                  break;
       case 'r' : ttree = atoi(optarg);
+                 break;
+      case 'R' : tfile  = string(optarg);
                  break;
       case 'M' : minncells = atoi(optarg);
                  break;
@@ -238,7 +242,7 @@ int main(int argc, char **argv) {
 
 
   // histograms
-  TFile cetracksfile("CeTracks.root","RECREATE");
+  TFile cetracksfile(tfile.c_str(),"RECREATE");
   TH1F* ipade = new TH1F("ipde","IPA dE",100,-3.0,0.0);
   TH1F* tarde = new TH1F("tarde","Target dE;dE (MeV)",100,-3.0,0.0);
   TH1F* trkde = new TH1F("trkde","Tracker dE;dE (MeV)",100,-3.0,0.0);
@@ -516,7 +520,7 @@ int main(int argc, char **argv) {
     rulers->GetYaxis()->SetLabelColor(kCyan);
     rulers->GetZaxis()->SetAxisColor(kOrange);
     rulers->GetZaxis()->SetLabelColor(kOrange);
-    rulers->SetAxisRange(bfield->zMin(),tracker.cylinder().zmax(),"Z");
+    rulers->SetAxisRange(target.cylinder().zmin(),tracker.cylinder().zmax(),"Z");
     rulers->Draw();
     cetcan->Write();
   }
