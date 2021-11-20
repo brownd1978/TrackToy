@@ -68,6 +68,7 @@ namespace TrackToy {
       double vprop_; // signal propagation velocity
       double sigt_; // transverse measurement time resolution sigma
       double sigl_; // longitudinal measurement time resolution sigma
+      double lrdoca_; // minimum doca to resolve LR ambiguity
       mutable TRandom3 tr_; // random number generator
   };
 
@@ -135,13 +136,12 @@ namespace TrackToy {
     // find the POCA between the particle trajectory and the wire line
     KinKal::CAHint tphint(htime,htime);
     static double tprec(1e-8); // TPOCA precision
-    static double ambigdoca(-1.0); // minimum distance to use drift, should be a parameter FIXME
     PTCA tp(pktraj,wline,tphint,tprec);
     // check
 //    std::cout << "doca " << tp.doca() << " sensor TOCA " << tp.sensorToca() - fabs(tp.doca())/vdrift_ << " particle TOCA " << tp.particleToca() << " hit time " << htime << std::endl;
     // define the initial ambiguity; it is the MC true value by default
     KinKal::WireHitState::LRAmbig ambig(KinKal::WireHitState::null);
-    if(fabs(tp.doca())> ambigdoca) ambig = tp.doca() < 0 ? KinKal::WireHitState::left : KinKal::WireHitState::right;
+    if(fabs(tp.doca())> lrdoca_) ambig = tp.doca() < 0 ? KinKal::WireHitState::left : KinKal::WireHitState::right;
     KinKal::WireHitState::Dimension dim(KinKal::WireHitState::time);
     double nullvar = (cellRadius()*cellRadius())/3.0;
     KinKal::WireHitState whstate(ambig, dim, nullvar, 0.0);

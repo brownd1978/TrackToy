@@ -12,7 +12,7 @@
 namespace TrackToy {
   Tracker::Tracker(MatEnv::MatDBInfo const& matdbinfo,std::string const& tgtfile):
     ncells_(0), cellDensity_(-1.0), density_(-1.0), smat_(0),
-    vdrift_(-1.0), vprop_(-1.0), sigt_(-1.0), sigl_(-1.0)
+    vdrift_(-1.0), vprop_(-1.0), sigt_(-1.0), sigl_(-1.0), lrdoca_(-1.0)
   {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(tgtfile);
@@ -48,7 +48,7 @@ namespace TrackToy {
           density_ = cmass*ncells_/cyl_.volume();
         } else if(vdrift_ < 0.0){
           // hit properties
-          iss >> vdrift_ >> vprop_ >> sigt_ >> sigl_;
+          iss >> vdrift_ >> vprop_ >> sigt_ >> sigl_ >> lrdoca_;
         }
       }
     }
@@ -63,7 +63,8 @@ namespace TrackToy {
     else
       std::cout << " axially " << std::endl;
     std::cout << "Cell radius " << cellRadius() << " wall thickness " << smat_->wallThickness() << std::endl;
-    std::cout << "Vdrift " << vdrift_ << " Vprop " << vprop_ << " transverse resolution " << sigt_ << " longitudinal resolution " << sigl_ << std::endl;
+    std::cout << "Vdrift " << vdrift_ << " Vprop " << vprop_ << " transverse resolution " << sigt_
+    << " longitudinal resolution " << sigl_ << " minimum LR doca " << lrdoca_ << std::endl;
   }
 }
 
