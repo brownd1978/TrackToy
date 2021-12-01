@@ -76,9 +76,6 @@ int main(int argc, char **argv) {
                exit(EXIT_FAILURE);
     }
   }
-  // not sure why this is necessary...
-  gSystem->Load("lib/libTests.dylib");
-//  gSystem->Load("lib/libTests.so");
   if(mbfile.size()==0){
     cout << "No input muon beam file specified: terminating" << endl;
     return 1;
@@ -91,6 +88,8 @@ int main(int argc, char **argv) {
   // find the TTree in the mbfile
   TDirectory* td = (TDirectory*)mubeamfile->Get("StepPointMCDumper");
   TTreeReader reader("nt",td);
+  ParticleState ps;
+  cout << "pstate " << ps.momentum3() << endl;
   TTreeReaderValue<ParticleState> pstate(reader, "particle");
   TTree* ptree = (TTree*)td->Get("nt");
   cout << "MuonBeam particle TTree from file " << mbfile << " has " << ptree->GetEntries() << " Entries" << endl;

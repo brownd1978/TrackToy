@@ -55,8 +55,6 @@ int main(int argc, char **argv) {
                exit(EXIT_FAILURE);
     }
   }
-  // not sure why this is necessary...
-  gSystem->Load("lib/libTests.dylib");
   if(file.size()==0){
     cout << "No input file specified: terminating" << endl;
     return 1;

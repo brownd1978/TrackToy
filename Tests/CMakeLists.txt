@@ -1,5 +1,4 @@
 # List of test test sources
-# ls -1 *_test.cc
 
 set( TEST_SOURCE_FILES
   Spectrum_test.cc
@@ -10,22 +9,7 @@ set( TEST_SOURCE_FILES
   CeTracks_test.cc
 )
 
-# generate root dictionary
 include_directories(${PROJECT_SOURCE_DIR}/..)
-ROOT_GENERATE_DICTIONARY(TestsDict
-    ${PROJECT_SOURCE_DIR}/../KinKal/General/ParticleState.hh
-    LINKDEF LinkDef.h
-)
-# create shared library with ROOT dict
-add_library(Tests SHARED TestsDict)
-
-target_include_directories(Tests PRIVATE ${PROJECT_SOURCE_DIR}/..)
-target_include_directories(Tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-# add KinKal; this may be redundant, but...
-target_include_directories(Tests PRIVATE ${KINKAL_INCLUDE_DIR})
-
-# link ROOT libraries
-target_link_libraries(Tests ${ROOT_LIBRARIES} ${KINKAL_LIBRARIES})
 
 # Generate test targets
 foreach( testsourcefile ${TEST_SOURCE_FILES} )
@@ -41,7 +25,7 @@ foreach( testsourcefile ${TEST_SOURCE_FILES} )
     # add the project root as an include directory
     # link all test tests to KinKal, MatEnv, and ROOT libraries.
     target_include_directories(Test_${testname} PRIVATE ${PROJECT_SOURCE_DIR}/..)
-    target_link_libraries( Test_${testname}  Spectra Detector General ${ROOT_LIBRARIES} ${KINKAL_LIBRARIES})
+    target_link_libraries( Test_${testname}  Spectra Detector General ${KINKAL_LIBRARIES} ${ROOT_LIBRARIES} )
 
     # ensure the test test executable filename is just its test name
     set_target_properties( Test_${testname} PROPERTIES OUTPUT_NAME ${testname})
