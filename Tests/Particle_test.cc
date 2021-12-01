@@ -79,9 +79,6 @@ int main(int argc, char **argv) {
                exit(EXIT_FAILURE);
     }
   }
-  // not sure why this is necessary...
-  gSystem->Load("lib/libTests.dylib");
-  gSystem->Load("libGeom");
   if(pfile.size()==0){
     cout << "No input pfile specified: terminating" << endl;
     return 1;

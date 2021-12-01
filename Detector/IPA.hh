@@ -6,7 +6,6 @@
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/MatEnv/DetMaterial.hh"
 #include "KinKal/General/TimeRange.hh"
-#include "TrackToy/General/Moyal.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/CylindricalShell.hh"
 namespace TrackToy {
@@ -17,8 +16,6 @@ namespace TrackToy {
       auto const& cylinder() const { return cyl_; }
       auto const& material() const { return *mat_; }
       auto type() const { return type_; }
-      // find the Moyal distribution describing the eloss function for a given intersection of a trajectory with this cylinder.
-      template<class PKTRAJ> Moyal energyLoss(PKTRAJ const& pktraj, KinKal::TimeRange const& trange) const;
       // extend a trajectory through the IPA.  Return value specifies if the particle continues downsream (true) or stops in the target or exits the field upstream (false)
       template<class PKTRAJ> bool extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj,TimeRanges& intersections) const;
       void print(std::ostream& os) const;
@@ -28,16 +25,6 @@ namespace TrackToy {
       const MatEnv::DetMaterial* mat_;
   };
 
-  template<class PKTRAJ> Moyal IPA::energyLoss(PKTRAJ const& pktraj, KinKal::TimeRange const& trange) const {
-    // sample the trajectory at the middle of the range
-    auto const& ktraj = pktraj.nearestPiece(trange.mid());
-    double beta = ktraj.beta();
-    double mom = ktraj.momentum();
-    double plen = ktraj.speed(trange.mid())*trange.range();
-    double xi = mat_->eloss_xi(beta,plen);
-    double dp = mat_->energyLossMPV(mom,plen,ktraj.mass());
-    return Moyal(dp,xi);
-  }
 
   template<class PKTRAJ> bool IPA::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections) const {
     bool retval(false);
@@ -58,13 +45,12 @@ namespace TrackToy {
       cyl_.intersect(pktraj,intersections,tstart,tstep);
       if(intersections.size() > 0){
         for (auto const& ipainter : intersections) {
-          auto eloss = energyLoss(pktraj,ipainter);
-          double de = eloss.mean(); // should sample the distribution FIXME
-//        double de = eloss.sample(tr_.Uniform(0.0,1.0)); // currently broken, FIXME
+          double mom = pktraj.momentum(ipainter.mid());
+          double plen = pktraj.speed(ipainter.mid())*ipainter.range();
+          double de = mat_->energyLossMPV(mom,plen,pktraj.mass()); // should sample TODO
           energy += de;
         }
         retval = updateEnergy(pktraj,intersections.back().end(),energy);
-//        std::cout << "IPA update " << retval << std::endl;
       }
     }
     return retval;
