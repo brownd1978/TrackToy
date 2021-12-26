@@ -51,7 +51,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --bfieldfile s --targetrackerfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -67,12 +67,13 @@ int main(int argc, char **argv) {
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
   string sfile("Data/Schedule.txt"); // fit schedule
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
-  double tol(0.01);
+  double tol(1e-4);
   double emass(0.511); //electron
   double cmin(-1.0), cmax(1.0);
   size_t npts(5000);
   bool draw(false), ttree(true), saveall(false);
   string tfile("CeTracks.root");
+  int trkfieldtype(0);
   int minncells(15); // minimum # of hits
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
@@ -88,16 +89,18 @@ int main(int argc, char **argv) {
   VEC3 mcentmom_, mcmidmom_, mcextmom_;
   VEC3 kkentpos_, kkmidpos_, kkextpos_;
   VEC3 mcentpos_, mcmidpos_, mcextpos_;
+  KTRAJ seedtraj_;
   // fit parameters
   KinKal::DVEC sigmas(0.5, 0.5, 0.5, 0.5, 0.002, 0.5); // expected parameter sigmas for loop helix
-  double seedsmear(10.0);
+  double seedsmear(1.0);
   double dwt(1.0e6);
   unsigned maxniter(10);
   Config::printLevel detail(Config::none), faildetail(Config::none);
 
   static struct option long_options[] = {
     {"mustopsfile",     required_argument, 0, 'm' },
-    {"bfieldfile",     required_argument, 0, 'F' },
+    {"bfield",     required_argument, 0, 'F' },
+    {"trkfield",     required_argument, 0, 'k' },
     {"targetfile",     required_argument, 0, 't' },
     {"trackerfile",     required_argument, 0, 'T' },
     {"ipafile",     required_argument, 0, 'i' },
@@ -121,6 +124,8 @@ int main(int argc, char **argv) {
           long_options, &long_index )) != -1) {
     switch (opt) {
       case 'F' : bfile = string(optarg);
+                 break;
+      case 'k' : trkfieldtype = atoi(optarg);
                  break;
       case 'm' : mfile = string(optarg);
                  break;
@@ -175,24 +180,6 @@ int main(int argc, char **argv) {
   MatEnv::SimpleFileFinder ttfinder(std::string("TRACKTOY_SOURCE_DIR"),std::string("/Data/"));
   cout << "Using Materials file " << ttfinder.matMtrDictionaryFileName() << endl;
   MatEnv::MatDBInfo matdb_(ttfinder,MatEnv::DetMaterial::moyalmean);
-  BFieldMap* bfield(0);
-  Config::BFCorr bfcorr(Config::variable);
-  FileFinder filefinder;
-  std::string fullfile = filefinder.fullFile(bfile);
-  if(strncmp(bfile.c_str(),"Fixed",5) == 0){
-    cout << "Building fixed BField"<< endl;
-    bfield = new UniformBFieldMap(1.0);
-    bfcorr = Config::nocorr;
-  } else if(strncmp(bfile.c_str(),"Grad",4) == 0) {
-    cout << "Building gradient BField"<< endl;
-    bfield = new GradientBFieldMap(1.04,1.00, -1500,1500);
-  } else {
-    // setup BField
-    cout << "Building BField from file " << fullfile << endl;
-    bfield = new AxialBFieldMap(fullfile);
-  }
-
-  bfield->print(cout);
 
   // setup target
   Target target(targetfile);
@@ -204,9 +191,25 @@ int main(int argc, char **argv) {
   Tracker tracker(matdb_,trackerfile);
   tracker.print(cout);
   EStar trackerEStar(efile_my);
-  // nominal fixed field for tracking: temporary kludge FIXME
+  // setup BField
+  bool bfcorr(true);
+  FileFinder filefinder;
+  std::string fullfile = filefinder.fullFile(bfile);
+  cout << "Building BField from file " << fullfile << endl;
+  auto bfield = new AxialBFieldMap(fullfile);
+  KinKal::BFieldMap* trkfield = bfield;
   auto bent = bfield->fieldVect(VEC3(0.0,0.0,tracker.zMin()));
-  BFieldMap* trkfield = new UniformBFieldMap(bent.Z());
+  if(trkfieldtype == 1){
+    cout << "Using fixed BField for tracker"<< endl;
+    auto bent = bfield->fieldVect(VEC3(0.0,0.0,tracker.zMin()));
+    trkfield = new UniformBFieldMap(bent.Z());
+  } else if(trkfieldtype == 2) {
+    cout << "Using gradient for tracker"<< endl;
+    trkfield = new GradientBFieldMap(bent.Z(),0.96*bent.Z(),tracker.zMin(),tracker.zMax());
+  } else {
+    cout << "Using full field for tracker"<< endl;
+  }
+  bfield->print(cout);
 //  auto trkfield = bfield;
   // setup fit configuration
   Config config;
@@ -215,7 +218,7 @@ int main(int argc, char **argv) {
   config.bfcorr_ = bfcorr;
   config.tol_ = tol;
   config.plevel_ = detail;
-  config.pdchi2_ = 1e6;
+  config.pdchi2_ = 1e4;
   // read the schedule from the file
   fullfile = filefinder.fullFile(sfile);
   std::ifstream ifs (fullfile, std::ifstream::in);
@@ -271,6 +274,7 @@ int main(int argc, char **argv) {
     cetree_->Branch("mcentpos",&mcentpos_);
     cetree_->Branch("mcmidpos",&mcmidpos_);
     cetree_->Branch("mcextpos",&mcextpos_);
+    cetree_->Branch("seedtraj",&seedtraj_);
     cetree_->Branch("kkstatus",&kkstatus_,"kkstatus/I");
     cetree_->Branch("kkndof",&kkndof_,"kkndof/I");
     cetree_->Branch("kknbf",&kknbf_,"kknbf/I");
@@ -289,6 +293,7 @@ int main(int argc, char **argv) {
   std::vector<TPolyLine3D*> plhel;
   // loop over stops
   int icolor(kBlue);
+  unsigned nfit(0), nfail(0), ndiv(0), npdiv(0), nlow(0), nconv(0), nuconv(0);
   if(ntrks<0)ntrks = mtree->GetEntries();
   while (itrk_ < ntrks) {
     ++itrk_;
@@ -333,6 +338,8 @@ int main(int argc, char **argv) {
     TimeRange range(cestate.time(),cestate.time()+1000.0); // much longer than physical: is truncated later
     auto bstart = bfield->fieldVect(cestate.position3());
     KTRAJ lhelix(cestate,bstart,range);
+    // sim tolerance is smaller than fit
+    double mctol = tol/10.0;
     //    cout << "Initial trajectory " << lhelix << endl;
     // initialize piecetraj
     PKTRAJ mctraj(lhelix);
@@ -352,19 +359,24 @@ int main(int argc, char **argv) {
         ipae_ = mctraj.energy(mctraj.range().end());
         ipade_ = ipae_ - targete_;
         // extend  to the tracker
-    // extend through the tracker to get the ranges
-        extendZ(mctraj,*bfield, tracker.zMin()-1.0, tol);// append a fixed-field trajectory; this is a temporary kludge FIXME
-        double trkent = ztime(mctraj,mctraj.back().range().begin(),tracker.zMin());
-        auto endstate = mctraj.back().state(trkent);
-        auto bnom = trkfield->fieldVect(endstate.position3());
-        KTRAJ endtraj(endstate,bnom,KinKal::TimeRange(trkent,mctraj.range().end()));
-        mctraj.append(endtraj,true); // need to understand why truncation is needed FIXME
-        ////
+        extendZ(mctraj,*bfield, tracker.zMin(), mctol);
+        // now create hits and straw intersections
         std::vector<double> htimes;
         std::vector<std::shared_ptr<Hit<KTRAJ>>> hits;
         std::vector<std::shared_ptr<ElementXing<KTRAJ>>> xings;
         double speed = mctraj.speed(mctraj.range().end());
-        tracker.simulateHits(*trkfield,mctraj,hits,xings,trackerinters,htimes);
+        // test
+        auto ttraj = mctraj;
+        tracker.simulateHits(*trkfield,mctraj,hits,xings,trackerinters,htimes,mctol);
+        if(htimes.size() > 0){
+          extendTraj(*trkfield,ttraj,htimes.back(),mctol);
+          auto estate = mctraj.state(htimes.back()+0.001);
+          auto tstate = ttraj.state(htimes.back()+0.001);
+          auto dpos = estate.position3()-tstate.position3();
+          auto dmom = estate.momentum3()-tstate.momentum3();
+          cout << "dpos " << dpos << " dmom " << dmom << dmom.R() << endl;
+        }
+
         ntrackercells_ = htimes.size();
         ntrackerarcs_ = trackerinters.size();
         npieces_ = mctraj.pieces().size();
@@ -400,21 +412,24 @@ int main(int argc, char **argv) {
           mcextpos_ = extstate.position3();
 
           // reconstruct track from hits and material info
-          auto seedtraj = mctraj.nearestPiece(0.5*(htimes.front()+htimes.back()));
+          auto seedtraj = mctraj.nearestPiece(mctmid);
           seedtraj.setRange(mctraj.range());
           for(size_t ipar=0; ipar < NParams(); ipar++){
             double perr = sigmas[ipar]*seedsmear;
             seedtraj.params().covariance()[ipar][ipar] = perr*perr;
             seedtraj.params().parameters()[ipar] += tr_.Gaus(0.0,perr);
           }
-          if(config.plevel_ > Config::none) {
-            //            cout << "Front traj " << mctraj.nearestPiece(htimes.front());
-            //            cout << "Back traj " << mctraj.nearestPiece(htimes.back());
-            //            cout << "Seed traj " << seedtraj;
-          }
+          seedtraj_ = seedtraj;
           KKTRK kktrk(config,*trkfield,seedtraj,hits,xings);
+          nfit++;
           // fill fit information
           auto const& fstat = kktrk.fitStatus();
+          if(fstat.status_ == Status::failed)nfail++;
+          if(fstat.status_ == Status::converged)nconv++;
+          if(fstat.status_ == Status::unconverged)nuconv++;
+          if(fstat.status_ == Status::lowNDOF)nlow++;
+          if(fstat.status_ == Status::diverged)ndiv++;
+          if(fstat.status_ == Status::paramsdiverged)npdiv++;
           kkstatus_ = fstat.status_;
           kkchisq_ = fstat.chisq_.chisq();
           kkprob_ = fstat.chisq_.probability();
@@ -471,6 +486,15 @@ int main(int argc, char **argv) {
     } // particle exits the target going downstream
     if(saveall)cetree_->Fill();
   }
+
+  cout
+    << nfit << " KinKal fits "
+    << nconv << " Converged fits "
+    << nuconv << " Unconverged fits "
+    << nfail << " Failed fits "
+    << nlow << " low NDOF fits "
+    << ndiv << " Diverged fits "
+    << npdiv << " ParameterDiverged fits " << endl;
   // Canvas of basic parameters
   TCanvas* ctrkcan = new TCanvas("CeTrack");
   ctrkcan->Divide(2,2);
