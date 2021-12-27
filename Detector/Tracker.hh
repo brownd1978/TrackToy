@@ -124,7 +124,8 @@ namespace TrackToy {
     KinKal::WireHitState::LRAmbig ambig(KinKal::WireHitState::null);
     if(fabs(tp.doca())> lrdoca_) ambig = tp.doca() < 0 ? KinKal::WireHitState::left : KinKal::WireHitState::right;
     KinKal::WireHitState::Dimension dim(KinKal::WireHitState::time);
-    double nullvar = (cellRadius()*cellRadius())/3.0;
+    double dd = std::max(lrdoca_,cellRadius());
+    double nullvar = dd*dd/12.0;
     KinKal::WireHitState whstate(ambig, dim, nullvar, 0.0);
     // test for inefficiency
     double eff = tr_.Uniform(0.0,1.0);
@@ -227,8 +228,7 @@ namespace TrackToy {
       auto dmvec = endpiece.direction(txing,mdir);
       dmvec *= dm*mom;
 //      std::cout << "dmvec " << dmvec << std::endl;
-// test FIXME
-//      endmom.SetCoordinates(endmom.Px()+dmvec.X(), endmom.Py()+dmvec.Y(), endmom.Pz()+dmvec.Z(),endmom.M());
+      endmom.SetCoordinates(endmom.Px()+dmvec.X(), endmom.Py()+dmvec.Y(), endmom.Pz()+dmvec.Z(),endmom.M());
     }
     // generate a new piece and append
     auto bnom = bfield.fieldVect(endpos.Vect());

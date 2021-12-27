@@ -42,10 +42,6 @@ namespace TrackToy {
           std::cout << "ncells " << ncells_  << " rcell " << rcell << " lcell " << lcell << " wthick " << wthick << " rwire " << rwire << std::endl;
           if(rcell<0.0)throw std::invalid_argument("Invalid cell parameters");
           smat_ = new KinKal::StrawMaterial(matdbinfo, rcell, wthick, rwire);
-// test
-//          const MatEnv::DetMaterial *wallmat, *gasmat, *wiremat;
-//          wallmat = gasmat = wiremat = matdbinfo.findDetMaterial("vacuum");
-//          smat_ = new KinKal::StrawMaterial(rcell, wthick, rwire,wallmat, gasmat, wiremat);
           orientation_ = (CellOrientation)orient;
           // cell density (transverse to the cell)
           cellDensity_ = ncells_*2.0*rcell*lcell/cyl_.volume();
