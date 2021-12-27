@@ -89,7 +89,7 @@ namespace TrackToy {
       double clen = tinter.range()*speed;
       unsigned ncells = (unsigned)rint(clen*cellDensity_);
       double hstep = tinter.range()/(ncells+1);
-      double htime = tinter.begin()+0.5*tstep;
+      double htime = tinter.begin()+0.5*hstep;
       for(unsigned icell=0;icell<ncells;++icell){
         htimes.push_back(htime);
         // extend the trajectory to this time
@@ -227,7 +227,8 @@ namespace TrackToy {
       auto dmvec = endpiece.direction(txing,mdir);
       dmvec *= dm*mom;
 //      std::cout << "dmvec " << dmvec << std::endl;
-      endmom.SetCoordinates(endmom.Px()+dmvec.X(), endmom.Py()+dmvec.Y(), endmom.Pz()+dmvec.Z(),endmom.M());
+// test FIXME
+//      endmom.SetCoordinates(endmom.Px()+dmvec.X(), endmom.Py()+dmvec.Y(), endmom.Pz()+dmvec.Z(),endmom.M());
     }
     // generate a new piece and append
     auto bnom = bfield.fieldVect(endpos.Vect());

@@ -67,7 +67,7 @@ int main(int argc, char **argv) {
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
   string sfile("Data/Schedule.txt"); // fit schedule
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
-  double tol(1e-4);
+  double tol(1e-5);
   double emass(0.511); //electron
   double cmin(-1.0), cmax(1.0);
   size_t npts(5000);
@@ -339,7 +339,7 @@ int main(int argc, char **argv) {
     auto bstart = bfield->fieldVect(cestate.position3());
     KTRAJ lhelix(cestate,bstart,range);
     // sim tolerance is smaller than fit
-    double mctol = tol/10.0;
+    double mctol = tol/3;
     //    cout << "Initial trajectory " << lhelix << endl;
     // initialize piecetraj
     PKTRAJ mctraj(lhelix);
@@ -358,31 +358,41 @@ int main(int argc, char **argv) {
         nipa_ = ipainters.size();
         ipae_ = mctraj.energy(mctraj.range().end());
         ipade_ = ipae_ - targete_;
-        // extend  to the tracker
+        // extend  to the tracker entrance
         extendZ(mctraj,*bfield, tracker.zMin(), mctol);
         // now create hits and straw intersections
         std::vector<double> htimes;
         std::vector<std::shared_ptr<Hit<KTRAJ>>> hits;
         std::vector<std::shared_ptr<ElementXing<KTRAJ>>> xings;
         double speed = mctraj.speed(mctraj.range().end());
-        // test
-        auto ttraj = mctraj;
-        tracker.simulateHits(*trkfield,mctraj,hits,xings,trackerinters,htimes,mctol);
-        if(htimes.size() > 0){
-          extendTraj(*trkfield,ttraj,htimes.back(),mctol);
-          auto estate = mctraj.state(htimes.back()+0.001);
-          auto tstate = ttraj.state(htimes.back()+0.001);
-          auto dpos = estate.position3()-tstate.position3();
-          auto dmom = estate.momentum3()-tstate.momentum3();
-          cout << "dpos " << dpos << " dmom " << dmom << dmom.R() << endl;
+        // if the tracker field is different from the general field, change the trajector bnom
+        if(trkfield != bfield){
+          double tent = ztime(mctraj,mctraj.back().range().begin(),tracker.zMin());
+          auto pstate = mctraj.back().state(tent);
+          auto pos = pstate.position3();
+          auto bend = trkfield->fieldVect(pos);
+          KTRAJ endtraj(pstate,bend,TimeRange(tent,mctraj.range().end()));
+          mctraj.append(endtraj);
         }
+        // test
+//        auto ttraj = mctraj;
+//        extendZ(ttraj,*trkfield, tracker.zMax(), mctol);
+        tracker.simulateHits(*trkfield,mctraj,hits,xings,trackerinters,htimes,mctol);
+//        if(htimes.size() > 0){
+//          double ttest = htimes.back();
+//          auto mcpos = mctraj.position3(ttest);
+//          auto mcmom = mctraj.momentum3(ttest);
+//          auto tpos = ttraj.position3(ttest);
+//          auto tmom = ttraj.momentum3(ttest);
+//          auto dpos = tpos-mcpos;
+//          auto dmom = tmom-mcmom;
+//          cout << "dpos " << dpos.R() << " dmom " << dmom.R() << " mag "  << tmom.R()-mcmom.R() << endl;
+//        }
 
         ntrackercells_ = htimes.size();
         ntrackerarcs_ = trackerinters.size();
         npieces_ = mctraj.pieces().size();
         if(ntrackercells_ > minncells){
-//          cout << "Extended to tracker " << trackerinters.size() << endl;
-//          mctraj.print(cout,2);
 // calcluate the estart energy loss
           double trackerpath(0.0);
           double ke = cestate.energy() - cestate.mass();
@@ -393,7 +403,7 @@ int main(int argc, char **argv) {
           ipade->Fill(ipade_);
           trkde->Fill(trackerde_);
           trknc->Fill(ntrackercells_);
-          // add calo hits TODO
+          // add calo hit TODO
           // truncate the true trajectory
           mctraj.setRange(TimeRange(mctraj.range().begin(),mctraj.back().range().begin()+0.01));
           // get the true times at entrance and exit

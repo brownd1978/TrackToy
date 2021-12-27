@@ -39,25 +39,22 @@ namespace TrackToy {
     }
   }
 
-  // extend a trajectory forwards (in z) to the given z value for the given BField to the given z value
+  // extend a trajectory forwards in time till it is in tolerance with the given BField to the given z value
   template<class KTRAJ> bool extendZ(KinKal::ParticleTrajectory<KTRAJ>& pktraj, KinKal::BFieldMap const& bfield, double zmax,double tol) {
-    double tstart = pktraj.pieces().back().range().begin();
-    auto pos = pktraj.position3(tstart);
-    KinKal::TimeRange range(tstart, pktraj.range().end());
-    while(pos.Z() < zmax && bfield.inRange(pos) && range.begin() < range.end() ){
-      range.begin() = bfield.rangeInTolerance(pktraj.back(),range.begin(),tol);
-      if(range.begin() < range.end()){
-        // Predict new position and momentum at this end, making linear correction for BField effects
-        auto pstate = pktraj.back().state(range.begin());
-        pos = pstate.position3();
-        auto bend = bfield.fieldVect(pos);
-        KTRAJ endtraj(pstate,bend,range);
-        //        std::cout << "appending " << range << " to range " << pktraj.range() << std::endl;
-        pktraj.append(endtraj);
-        //        cout << "appended helix at point " << pos << " time " << range.begin() << endl;
-      } else {
-        pos = pktraj.position3(range.end());
-      }
+    auto tend = bfield.rangeInTolerance(pktraj.back(),pktraj.back().range().begin(),tol);
+    auto pos = pktraj.position3(tend);
+    while(pos.Z() < zmax && bfield.inRange(pos) && tend < pktraj.range().end() ){
+      // use position and momentum at the in-tolerance end to set the next piece
+      auto pstate = pktraj.state(tend);
+      auto bend = bfield.fieldVect(pos);
+      KinKal::TimeRange range(tend,pktraj.range().end());
+      KTRAJ endtraj(pstate,bend,range);
+      //        std::cout << "appending " << range << " to range " << pktraj.range() << std::endl;
+      pktraj.append(endtraj);
+      //        cout << "appended helix at point " << pos << " time " << range.begin() << endl;
+      // update
+      tend = bfield.rangeInTolerance(pktraj.back(),pktraj.back().range().begin(),tol);
+      pos = pktraj.position3(tend);
     }
     return pos.Z() >= zmax;
   }
