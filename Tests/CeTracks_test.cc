@@ -317,7 +317,7 @@ int main(int argc, char **argv) {
     mcentpos_ = mcmidpos_ = mcextpos_ = VEC3();
     kkstatus_ = KinKal::Status::unfit;
     kkchisq_ = kkprob_ = -1;
-    kkndof_ = kknbf_ = kknhit_ = kknmat_ = 0;
+    kknbf_ = kknhit_ = kknmat_ = 0;
 
     // generate a random CeEndpoint momentum; for now, use the endpoint energy, could use spectrum TODO
     cee_ = cespect.params().EEnd_;

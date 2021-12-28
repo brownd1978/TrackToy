@@ -48,9 +48,9 @@ namespace TrackToy {
     private:
       // helper functions for simulating hits
       // create a line representing the wire for a time on a particle trajector.  This embeds the timing information
-      template <class KTRAJ> KinKal::Line wireLine(KinKal::ParticleTrajectory<KTRAJ> const& mctraj, double htime) const;
+      template <class KTRAJ> KinKal::Line wireLine(KinKal::ParticleTrajectory<KTRAJ> const& mctraj, KinKal::VEC3 wdir, double htime) const;
       // simulate hit and xing for a particular time on a particle trajectory and add them to the lists
-      template <class KTRAJ> void simulateHit(KinKal::BFieldMap const& bfield,
+      template <class KTRAJ> bool simulateHit(KinKal::BFieldMap const& bfield,
           KinKal::ParticleTrajectory<KTRAJ> const& mctraj,
           double htime,
           std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>>& hits,
@@ -91,20 +91,22 @@ namespace TrackToy {
       double hstep = tinter.range()/(ncells+1);
       double htime = tinter.begin()+0.5*hstep;
       for(unsigned icell=0;icell<ncells;++icell){
-        htimes.push_back(htime);
         // extend the trajectory to this time
         extendTraj(bfield,mctraj,htime,tol);
         // create hits and xings for this time
-        simulateHit(bfield,mctraj,htime,hits,xings);
+        bool hashit=simulateHit(bfield,mctraj,htime,hits,xings);
         // update the trajector for the effect of this material
-        updateTraj(bfield, mctraj,xings.back().get());
+        if(hashit){
+          htimes.push_back(htime);
+          updateTraj(bfield, mctraj,xings.back().get());
+        }
         // update to the next
         htime += hstep;
       }
     }
   }
 
-  template <class KTRAJ> void Tracker::simulateHit(KinKal::BFieldMap const& bfield, KinKal::ParticleTrajectory<KTRAJ> const& mctraj,
+  template <class KTRAJ> bool Tracker::simulateHit(KinKal::BFieldMap const& bfield, KinKal::ParticleTrajectory<KTRAJ> const& mctraj,
       double htime,
       std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>>& hits,
       std::vector<std::shared_ptr<KinKal::ElementXing<KTRAJ>>>& xings ) const {
@@ -112,49 +114,59 @@ namespace TrackToy {
     using WIREHIT = KinKal::SimpleWireHit<KTRAJ>;
     using STRAWXING = KinKal::StrawXing<KTRAJ>;
     using STRAWXINGPTR = std::shared_ptr<STRAWXING>;
+    using ROOT::Math::VectorUtil::PerpVector;
+    // define the drift and wire directions
+    static const KinKal::VEC3 zdir(0.0,0.0,1.0);
+    KinKal::VEC3 wdir = zdir;
+    if(orientation_ == azimuthal){
+      auto pos = mctraj.position3(htime);
+      static double pi_over_3 = M_PI/3.0;
+      // generate azimuthal angle WRT the hit
+      double wphi = tr_.Uniform(0.0,pi_over_3);
+// acceptance test, assuming a triangular inner hole
+      double rmax = 0.5*cyl_.rmax()/cos(wphi);
+      if(pos.Rho() < rmax)return false;
+      auto rdir = PerpVector(pos,zdir).Unit(); // radial direction
+      auto fdir = zdir.Cross(rdir).Unit(); // azimuthal direction (increasing)
+      wdir = fdir*cos(wphi) + rdir*sin(wphi);
+      //      std::cout << "wire rmin " << pos.Rho()*cos(phimax) << std::endl;
+    }
     // create the line representing this hit's wire.  The line embeds the timing information
-    KinKal::Line const& wline = wireLine(mctraj,htime);
+    KinKal::Line const& wline = wireLine(mctraj,wdir,htime);
     // find the POCA between the particle trajectory and the wire line
     KinKal::CAHint tphint(htime,htime);
     static double tprec(1e-8); // TPOCA precision
     PTCA tp(mctraj,wline,tphint,tprec);
-    // check
-    //    std::cout << "doca " << tp.doca() << " sensor TOCA " << tp.sensorToca() - fabs(tp.doca())/vdrift_ << " particle TOCA " << tp.particleToca() << " hit time " << htime << std::endl;
-    // define the initial ambiguity; it is the MC true value by default
-    KinKal::WireHitState::LRAmbig ambig(KinKal::WireHitState::null);
-    if(fabs(tp.doca())> lrdoca_) ambig = tp.doca() < 0 ? KinKal::WireHitState::left : KinKal::WireHitState::right;
-    KinKal::WireHitState::Dimension dim(KinKal::WireHitState::time);
-    double dd = std::max(lrdoca_,cellRadius());
-    double nullvar = dd*dd/12.0;
-    KinKal::WireHitState whstate(ambig, dim, nullvar, 0.0);
-    // test for inefficiency
-    double eff = tr_.Uniform(0.0,1.0);
-    if(eff < hiteff_)
-      // create the hit
-      hits.push_back(std::make_shared<WIREHIT>(bfield, tp, whstate, vdrift_, sigt_*sigt_, cellRadius()));
     // create the straw xing (regardless of inefficiency)
     auto xing = std::make_shared<STRAWXING>(tp,*smat_);
     xings.push_back(xing);
+    // test for inefficiency
+    double eff = tr_.Uniform(0.0,1.0);
+    if(eff < hiteff_){
+      // check
+      //    std::cout << "doca " << tp.doca() << " sensor TOCA " << tp.sensorToca() - fabs(tp.doca())/vdrift_ << " particle TOCA " << tp.particleToca() << " hit time " << htime << std::endl;
+      // define the initial ambiguity; it is the MC true value by default
+      // preset to a null hit
+      KinKal::WireHitState::LRAmbig ambig(KinKal::WireHitState::null);
+      KinKal::WireHitState::Dimension dim(KinKal::WireHitState::both);
+      if(fabs(tp.doca())> lrdoca_){
+        ambig = tp.doca() < 0 ? KinKal::WireHitState::left : KinKal::WireHitState::right;
+        dim = KinKal::WireHitState::time;
+      }
+      double rmax = std::max(lrdoca_,cellRadius());
+      double nullvar = rmax*rmax/3.0;
+      double nulldt = 0.5*lrdoca_/vdrift_; // the shift should be the average drift time over this distance
+      KinKal::WireHitState whstate(ambig, dim, nullvar, nulldt);
+      // create the hit
+      hits.push_back(std::make_shared<WIREHIT>(bfield, tp, whstate, vdrift_, sigt_*sigt_, cellRadius()));
+    }
+    return true;
   }
 
-  template <class KTRAJ> KinKal::Line Tracker::wireLine(KinKal::ParticleTrajectory<KTRAJ> const& mctraj, double htime) const {
-    using ROOT::Math::VectorUtil::PerpVector;
+  template <class KTRAJ> KinKal::Line Tracker::wireLine(KinKal::ParticleTrajectory<KTRAJ> const& mctraj, KinKal::VEC3 wdir, double htime) const {
     // find the position and direction of the particle at this time
     auto pos = mctraj.position3(htime);
     auto pdir = mctraj.direction(htime);
-    // define the drift and wire directions
-    KinKal::VEC3 wdir;
-    static const KinKal::VEC3 zdir(0.0,0.0,1.0);
-    if(orientation_ == azimuthal){
-      auto rdir = PerpVector(pos,zdir).Unit(); // radial direction
-      auto fdir = zdir.Cross(rdir).Unit(); // azimuthal direction (increasing)
-      float phimax = 0.5*M_PI - asinf(std::min(1.0,cyl_.rmin()/(pos.Rho())));
-      double phi = tr_.Uniform(-phimax,phimax);
-      wdir = fdir*cos(phi) + rdir*sin(phi);
-//      std::cout << "wire rmin " << pos.Rho()*cos(phimax) << std::endl;
-    } else {
-      wdir = zdir;
-    }
     // drift direction is perp to wire and particle
     auto ddir = pdir.Cross(wdir).Unit();
     // uniform drift distance = uniform impact parameter (random sign)
