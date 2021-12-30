@@ -156,7 +156,9 @@ namespace TrackToy {
       double rmax = std::max(lrdoca_,cellRadius());
       double nullvar = rmax*rmax/3.0;
       double nulldt = 0.5*lrdoca_/vdrift_; // the shift should be the average drift time over this distance
-      KinKal::WireHitState whstate(ambig, dim, nullvar, nulldt);
+      double nulldtvar = (rmax*rmax)/(vdrift_*vdrift_*12) + sigt_*sigt_; // variance on the drift time over this distance
+      // i need a better way to include the intrinsic error fixme!
+      KinKal::WireHitState whstate(ambig, dim, nullvar, nulldt, nulldtvar);
       // create the hit
       hits.push_back(std::make_shared<WIREHIT>(bfield, tp, whstate, vdrift_, sigt_*sigt_, cellRadius()));
     }
