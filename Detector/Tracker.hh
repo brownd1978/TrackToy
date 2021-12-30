@@ -147,18 +147,12 @@ namespace TrackToy {
       //    std::cout << "doca " << tp.doca() << " sensor TOCA " << tp.sensorToca() - fabs(tp.doca())/vdrift_ << " particle TOCA " << tp.particleToca() << " hit time " << htime << std::endl;
       // define the initial ambiguity; it is the MC true value by default
       // preset to a null hit
-      KinKal::WireHitState::LRAmbig ambig(KinKal::WireHitState::null);
-      KinKal::WireHitState::Dimension dim(KinKal::WireHitState::both);
+      KinKal::WireHitState::State ambig(KinKal::WireHitState::null);
       if(fabs(tp.doca())> lrdoca_){
         ambig = tp.doca() < 0 ? KinKal::WireHitState::left : KinKal::WireHitState::right;
-        dim = KinKal::WireHitState::time;
       }
       double rmax = std::max(lrdoca_,cellRadius());
-      double nullvar = rmax*rmax/3.0;
-      double nulldt = 0.5*lrdoca_/vdrift_; // the shift should be the average drift time over this distance
-      double nulldtvar = (rmax*rmax)/(vdrift_*vdrift_*12) + sigt_*sigt_; // variance on the drift time over this distance
-      // i need a better way to include the intrinsic error fixme!
-      KinKal::WireHitState whstate(ambig, dim, nullvar, nulldt, nulldtvar);
+      KinKal::WireHitState whstate(ambig, rmax);
       // create the hit
       hits.push_back(std::make_shared<WIREHIT>(bfield, tp, whstate, vdrift_, sigt_*sigt_, cellRadius()));
     }
