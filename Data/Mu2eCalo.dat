@@ -1,0 +1,9 @@
+#
+#  Parameters describing the Mu2e tcalorimeter
+# disk1 information: rmin rmax zpos zhalf
+374.0 660.0 1667. 100.
+# disk2 information: rmin rmax zpos zhalf
+374.0 660.0 2367. 100.
+# crystal information: light propagation velocity (mm/ns), intrinsic time resolution (ns), spatial resolution (mm), minimum path to create a hit
+200.0 0.5 10.0 30
+

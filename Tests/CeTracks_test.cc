@@ -16,6 +16,7 @@
 #include "TrackToy/Detector/Target.hh"
 #include "TrackToy/Detector/IPA.hh"
 #include "TrackToy/Detector/Tracker.hh"
+#include "TrackToy/Detector/Calorimeter.hh"
 #include "TrackToy/Spectra/CeMinusSpectrum.hh"
 #include "TFile.h"
 #include "TSystem.h"
@@ -63,6 +64,7 @@ int main(int argc, char **argv) {
   using KKBF = BFieldEffect<KTRAJ>;
   int ntrks(-1);
   string bfile("Data/DSMapDump.dat"), mfile("MuStops.root"), targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
+  string calofile("Data/Mu2eCalo.dat");
   string ipafile("Data/Mu2e_IPA.dat");
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
   string sfile("Data/Schedule.txt"); // fit schedule
@@ -190,7 +192,10 @@ int main(int argc, char **argv) {
   // setup tracker
   Tracker tracker(matdb_,trackerfile);
   tracker.print(cout);
-  EStar trackerEStar(efile_my);
+  EStar trackerEStar(efile_my); // this is no longer needed, except for comparisons FIXME
+  // setup calo
+  Calorimeter calo(calofile);
+  calo.print(cout);
   // setup BField
   bool bfcorr(true);
   FileFinder filefinder;
@@ -361,7 +366,6 @@ int main(int argc, char **argv) {
         // extend  to the tracker entrance
         extendZ(mctraj,*bfield, tracker.zMin(), mctol);
         // now create hits and straw intersections
-        std::vector<double> htimes;
         std::vector<std::shared_ptr<Hit<KTRAJ>>> hits;
         std::vector<std::shared_ptr<ElementXing<KTRAJ>>> xings;
         double speed = mctraj.speed(mctraj.range().end());
@@ -377,19 +381,9 @@ int main(int argc, char **argv) {
         // test
 //        auto ttraj = mctraj;
 //        extendZ(ttraj,*trkfield, tracker.zMax(), mctol);
-        tracker.simulateHits(*trkfield,mctraj,hits,xings,trackerinters,htimes,mctol);
-//        if(htimes.size() > 0){
-//          double ttest = htimes.back();
-//          auto mcpos = mctraj.position3(ttest);
-//          auto mcmom = mctraj.momentum3(ttest);
-//          auto tpos = ttraj.position3(ttest);
-//          auto tmom = ttraj.momentum3(ttest);
-//          auto dpos = tpos-mcpos;
-//          auto dmom = tmom-mcmom;
-//          cout << "dpos " << dpos.R() << " dmom " << dmom.R() << " mag "  << tmom.R()-mcmom.R() << endl;
-//        }
+        tracker.simulateHits(*trkfield,mctraj,hits,xings,trackerinters,mctol);
 
-        ntrackercells_ = htimes.size();
+        ntrackercells_ = hits.size();
         ntrackerarcs_ = trackerinters.size();
         npieces_ = mctraj.pieces().size();
         if(ntrackercells_ > minncells){

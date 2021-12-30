@@ -43,7 +43,6 @@ namespace TrackToy {
           std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>>& hits,
           std::vector<std::shared_ptr<KinKal::ElementXing<KTRAJ>>>& xings,
           std::vector<KinKal::TimeRange>& tinters,
-          std::vector<double>& htimes,
           double tol) const;
     private:
       // helper functions for simulating hits
@@ -78,7 +77,7 @@ namespace TrackToy {
       KinKal::ParticleTrajectory<KTRAJ>& mctraj,
       std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>>& hits,
       std::vector<std::shared_ptr<KinKal::ElementXing<KTRAJ>>>& xings,
-      std::vector<KinKal::TimeRange>& tinters, std::vector<double>& htimes,double tol) const {
+      std::vector<KinKal::TimeRange>& tinters, double tol) const {
     double tstart = mctraj.back().range().begin();
     double speed = mctraj.speed(tstart);
     double tstep = cellRadius()/speed;
@@ -97,7 +96,6 @@ namespace TrackToy {
         bool hashit=simulateHit(bfield,mctraj,htime,hits,xings);
         // update the trajector for the effect of this material
         if(hashit){
-          htimes.push_back(htime);
           updateTraj(bfield, mctraj,xings.back().get());
         }
         // update to the next
