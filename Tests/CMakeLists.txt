@@ -6,7 +6,7 @@ set( TEST_SOURCE_FILES
   Particle_test.cc
   BField_test.cc
   MuStops_test.cc
-  CeTracks_test.cc
+  Tracks_test.cc
 )
 
 include_directories(${PROJECT_SOURCE_DIR}/..)

@@ -18,6 +18,7 @@
 #include "TrackToy/Detector/Tracker.hh"
 #include "TrackToy/Detector/Calorimeter.hh"
 #include "TrackToy/Spectra/CeMinusSpectrum.hh"
+#include "TrackToy/Spectra/DIOSpectrum.hh"
 #include "TFile.h"
 #include "TSystem.h"
 #include "TDirectory.h"
@@ -52,7 +53,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --endpoint f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --spectrum s --endpoint f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -68,22 +69,24 @@ int main(int argc, char **argv) {
   string ipafile("Data/Mu2e_IPA.dat");
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
   string sfile("Data/Schedule.txt"); // fit schedule
+  string spectrum("CeMinus");
+  string diofile("Data/DIOAl_fine.dat"); // this should be a parameter FIXME
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
   double tol(1e-5);
   double emass(0.511); //electron
   double cmin(-1.0), cmax(1.0);
   size_t npts(5000);
   bool draw(false), ttree(true), saveall(false);
-  string tfile("CeTracks.root");
+  string tfile("Tracks.root");
   int trkfieldtype(0);
   int minncells(15); // minimum # of hits
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
-  TTree* cetree_(0);
+  TTree* trktree_(0);
   float targetde_, ipade_, trackerde_;
-  float cee_, targete_, ipae_, trackere_;
-  VEC3 cepos_, cemom_;
-  float cet_;
+  float origine_, targete_, ipae_, trackere_;
+  VEC3 originpos_, originmom_;
+  float origintime_;
   int npieces_, ntarget_, nipa_, ntrackerarcs_, ntrackercells_;
   int itrk_(0), kkstatus_, kkndof_, kknbf_, kknmat_, kknhit_, kkniter_;
   float kkchisq_, kkprob_;
@@ -106,6 +109,7 @@ int main(int argc, char **argv) {
     {"targetfile",     required_argument, 0, 't' },
     {"trackerfile",     required_argument, 0, 'T' },
     {"ipafile",     required_argument, 0, 'i' },
+    {"spectrum",     required_argument, 0, 's'  },
     {"endpoint",     required_argument, 0, 'e' },
     {"tol",     required_argument, 0, 'x' },
     {"ntrks",     required_argument, 0, 'n'  },
@@ -136,6 +140,8 @@ int main(int argc, char **argv) {
       case 'T' : trackerfile = string(optarg);
                  break;
       case 'i' : ipafile = string(optarg);
+                 break;
+      case 's' : spectrum = string(optarg);
                  break;
       case 'e' : endpoint = atof(optarg);
                  break;
@@ -245,53 +251,63 @@ int main(int argc, char **argv) {
   // randoms
   TRandom3 tr_; // random number generator
   // setup spectrum
-  CeMinusSpectrumParams ceparams(endpoint);
-  CeMinusSpectrum cespect(ceparams);
+  Spectrum* spect_(0);
+  if(spectrum == "CeMinus"){
+    // endpoint energy should come from target material FIXME
+    CeMinusSpectrumParams ceparams(endpoint);
+    spect_ = new CeMinusSpectrum(ceparams);
+  } else if (spectrum == "DIO") {
+  // endpoint range should be a parameter FIXME
+    spect_ = new DIOSpectrum(diofile.c_str(),endpoint-5.0,endpoint);
+  } else {
+    cout << "Unknown spectrum " << spectrum << ": aborting" << endl;
+    return -2;
+  }
 
   // histograms
-  TFile cetracksfile(tfile.c_str(),"RECREATE");
+  TFile trkfile(tfile.c_str(),"RECREATE");
   TH1F* ipade = new TH1F("ipde","IPA dE",100,-3.0,0.0);
   TH1F* tarde = new TH1F("tarde","Target dE;dE (MeV)",100,-3.0,0.0);
   TH1F* trkde = new TH1F("trkde","Tracker dE;dE (MeV)",100,-3.0,0.0);
   TH1F* trknc = new TH1F("trknc","Tracker N Cells;N Cells",100,0.001,100.0);
   if(ttree){
-    cetree_ = new TTree("ce","ce");
-    cetree_->Branch("itrk",&itrk_,"itrk/I");
-    cetree_->Branch("cee",&cee_,"cee/F");
-    cetree_->Branch("cepos",&cepos_);
-    cetree_->Branch("cemom",&cemom_);
-    cetree_->Branch("cet",&cet_,"cet/F");
-    cetree_->Branch("ntarget",&ntarget_,"ntarget/I");
-    cetree_->Branch("targetde",&targetde_,"targetde/F");
-    cetree_->Branch("targete",&targete_,"targete/F");
-    cetree_->Branch("ipae",&ipae_,"ipae/F");
-    cetree_->Branch("nipa",&nipa_,"nipa/I");
-    cetree_->Branch("ipade",&ipade_,"ipade/F");
-    cetree_->Branch("npieces",&npieces_,"npieces/I");
-    cetree_->Branch("ntrackerarcs",&ntrackerarcs_,"ntrackerarcs/I");
-    cetree_->Branch("ntrackercells",&ntrackercells_,"ntrackercells/I");
-    cetree_->Branch("trackere",&trackere_,"trackere/F");
-    cetree_->Branch("trackerde",&trackerde_,"trackerde/F");
-    cetree_->Branch("mcentmom",&mcentmom_);
-    cetree_->Branch("mcmidmom",&mcmidmom_);
-    cetree_->Branch("mcextmom",&mcextmom_);
-    cetree_->Branch("mcentpos",&mcentpos_);
-    cetree_->Branch("mcmidpos",&mcmidpos_);
-    cetree_->Branch("mcextpos",&mcextpos_);
-    cetree_->Branch("seedtraj",&seedtraj_);
-    cetree_->Branch("kkstatus",&kkstatus_,"kkstatus/I");
-    cetree_->Branch("kkndof",&kkndof_,"kkndof/I");
-    cetree_->Branch("kknbf",&kknbf_,"kknbf/I");
-    cetree_->Branch("kknhit",&kknhit_,"kknhit/I");
-    cetree_->Branch("kknmat",&kknmat_,"kknmat/I");
-    cetree_->Branch("kkchisq",&kkchisq_,"kkchisq/F");
-    cetree_->Branch("kkprob",&kkprob_,"kkprob/F");
-    cetree_->Branch("kkentmom",&kkentmom_);
-    cetree_->Branch("kkmidmom",&kkmidmom_);
-    cetree_->Branch("kkextmom",&kkextmom_);
-    cetree_->Branch("kkentpos",&kkentpos_);
-    cetree_->Branch("kkmidpos",&kkmidpos_);
-    cetree_->Branch("kkextpos",&kkextpos_);
+    trktree_ = new TTree("ce","ce");
+    trktree_->Branch("itrk",&itrk_,"itrk/I");
+    trktree_->Branch("origine",&origine_,"origine/F");
+    trktree_->Branch("originpos",&originpos_);
+    trktree_->Branch("originmom",&originmom_);
+    trktree_->Branch("origintime",&origintime_,"origintime/F");
+    trktree_->Branch("ntarget",&ntarget_,"ntarget/I");
+    trktree_->Branch("targetde",&targetde_,"targetde/F");
+    trktree_->Branch("targete",&targete_,"targete/F");
+    trktree_->Branch("ipae",&ipae_,"ipae/F");
+    trktree_->Branch("nipa",&nipa_,"nipa/I");
+    trktree_->Branch("ipade",&ipade_,"ipade/F");
+    trktree_->Branch("npieces",&npieces_,"npieces/I");
+    trktree_->Branch("ntrackerarcs",&ntrackerarcs_,"ntrackerarcs/I");
+    trktree_->Branch("ntrackercells",&ntrackercells_,"ntrackercells/I");
+    trktree_->Branch("trackere",&trackere_,"trackere/F");
+    trktree_->Branch("trackerde",&trackerde_,"trackerde/F");
+    trktree_->Branch("mcentmom",&mcentmom_);
+    trktree_->Branch("mcmidmom",&mcmidmom_);
+    trktree_->Branch("mcextmom",&mcextmom_);
+    trktree_->Branch("mcentpos",&mcentpos_);
+    trktree_->Branch("mcmidpos",&mcmidpos_);
+    trktree_->Branch("mcextpos",&mcextpos_);
+    trktree_->Branch("seedtraj",&seedtraj_);
+    trktree_->Branch("kkstatus",&kkstatus_,"kkstatus/I");
+    trktree_->Branch("kkndof",&kkndof_,"kkndof/I");
+    trktree_->Branch("kknbf",&kknbf_,"kknbf/I");
+    trktree_->Branch("kknhit",&kknhit_,"kknhit/I");
+    trktree_->Branch("kknmat",&kknmat_,"kknmat/I");
+    trktree_->Branch("kkchisq",&kkchisq_,"kkchisq/F");
+    trktree_->Branch("kkprob",&kkprob_,"kkprob/F");
+    trktree_->Branch("kkentmom",&kkentmom_);
+    trktree_->Branch("kkmidmom",&kkmidmom_);
+    trktree_->Branch("kkextmom",&kkextmom_);
+    trktree_->Branch("kkentpos",&kkentpos_);
+    trktree_->Branch("kkmidpos",&kkmidpos_);
+    trktree_->Branch("kkextpos",&kkextpos_);
   }
 
   std::vector<TPolyLine3D*> plhel;
@@ -323,8 +339,9 @@ int main(int argc, char **argv) {
     kkchisq_ = kkprob_ = -1;
     kknbf_ = kknhit_ = kknmat_ = 0;
 
-    // generate a random CeEndpoint momentum; for now, use the endpoint energy, could use spectrum TODO
-    cee_ = cespect.params().EEnd_;
+    // generate a random momentum
+    double prob = tr_.Uniform(0.0,1.0);
+    origine_ = spect_->sample(prob);
     // generate a random muon decay time; this should come from the target FIXME
     double tdecay = tr_.Exp(lifetime);
     // generate random phi and cos(theta)
@@ -334,11 +351,11 @@ int main(int argc, char **argv) {
     //    double cost = 0.7;
     double sint = sqrt(1.0-cost*cost);
     VEC4 const& pos4 = *mustoppos;
-    cepos_ = pos4.Vect();
-    cet_ = tdecay+pos4.T(); // add decay time to stopping time
-    double mom = sqrt(cee_*cee_ - emass*emass);
-    cemom_ = VEC3(mom*sint*cos(phi),mom*sint*sin(phi),mom*cost);
-    ParticleState cestate(cepos_,cemom_,cet_,emass,-1);
+    originpos_ = pos4.Vect();
+    origintime_ = tdecay+pos4.T(); // add decay time to stopping time
+    double mom = sqrt(origine_*origine_ - emass*emass);
+    originmom_ = VEC3(mom*sint*cos(phi),mom*sint*sin(phi),mom*cost);
+    ParticleState cestate(originpos_,originmom_,origintime_,emass,-1);
     TimeRange range(cestate.time(),cestate.time()+1000.0); // much longer than physical: is truncated later
     auto bstart = bfield->fieldVect(cestate.position3());
     KTRAJ lhelix(cestate,bstart,range);
@@ -353,7 +370,7 @@ int main(int argc, char **argv) {
       //      cout << "Extended to target " << targetinters.size() << endl;
       //      mctraj.print(cout,2);
       targete_ = mctraj.energy(mctraj.range().end());
-      targetde_ = targete_ - cee_;
+      targetde_ = targete_ - origine_;
       ntarget_ = targetinters.size();
       // extend through the IPA
       if(ipa.extendTrajectory(*bfield,mctraj,ipainters)){
@@ -471,7 +488,7 @@ int main(int argc, char **argv) {
             kktrk.print(cout,faildetail);
           }
 
-          if(!saveall)cetree_->Fill();
+          if(!saveall)trktree_->Fill();
           //
           if(draw){
             plhel.push_back(new TPolyLine3D(npts));
@@ -488,7 +505,7 @@ int main(int argc, char **argv) {
         } // particle hits the tracker
       } // particle stops in IPA
     } // particle exits the target going downstream
-    if(saveall)cetree_->Fill();
+    if(saveall)trktree_->Fill();
   }
 
   cout
@@ -514,7 +531,7 @@ int main(int argc, char **argv) {
   ctrkcan->Write();
 
   if(draw){
-    TCanvas* cetcan = new TCanvas("CeTracks");
+    TCanvas* trkcan = new TCanvas("Tracks");
     TTUBE* ttarget= new TTUBE("ttarget","ttarget","void",target.cylinder().rmin(),target.cylinder().rmax(),target.cylinder().zhalf());
     ttarget->SetLineColor(kBlack);
     ttarget->SetLineWidth(4);
@@ -550,11 +567,11 @@ int main(int argc, char **argv) {
     rulers->GetZaxis()->SetLabelColor(kOrange);
     rulers->SetAxisRange(target.cylinder().zmin(),tracker.cylinder().zmax(),"Z");
     rulers->Draw();
-    cetcan->Write();
+    trkcan->Write();
   }
 
-  cetracksfile.Write();
-  cetracksfile.Close();
+  trkfile.Write();
+  trkfile.Close();
 
   // now draw
   mustopsfile->Close();
