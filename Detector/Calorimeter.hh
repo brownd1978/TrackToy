@@ -44,7 +44,7 @@ namespace TrackToy {
       std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>>& hits, double tol) const {
    // extend through the first disk
     extendZ(mctraj,bfield,disk(0).zmax(),tol);
-    double tstart = mctraj.back().range().begin();
+    double tstart = ztime(mctraj,mctraj.back().range().begin(),disk(0).zmin()-10.0);
     double speed = mctraj.speed(tstart);
     double tstep = 0.1*pres_/speed; // set step to fraction of transverse size
     // find intersections with the first disk
@@ -53,10 +53,10 @@ namespace TrackToy {
     if(tinters.size()== 0) {
     // go to the second disk
       extendZ(mctraj,bfield,disk(0).zmax(),tol);
-      double tstart = mctraj.back().range().begin();
+      tstart = ztime(mctraj,mctraj.back().range().begin(),disk(1).zmin()-10.0);
       disk(0).intersect(mctraj,tinters,tstart,tstep);
     }
-    if(tinters.size() > 0 && tinters.front().range() > minpath_)simulateHit(mctraj,tinters.front(),hits);
+    if(tinters.size() > 0 && tinters.front().range()*speed > minpath_)simulateHit(mctraj,tinters.front(),hits);
   }
 
   template <class KTRAJ> void Calorimeter::simulateHit(KinKal::ParticleTrajectory<KTRAJ> const& mctraj,
@@ -73,11 +73,11 @@ namespace TrackToy {
     // figure out which disk
     size_t idisk = (hitpos.Z() > disks_[0].zmax()) ? 1 : 0;
     // smear the transverse position
-    hitpos.SetX(tr_.Gaus(hitpos.X(),tres_));
-    hitpos.SetY(tr_.Gaus(hitpos.Y(),tres_));
+    hitpos.SetX(tr_.Gaus(hitpos.X(),pres_));
+    hitpos.SetY(tr_.Gaus(hitpos.Y(),pres_));
     // set the z position to the sensor plane (back of the disk)
     hitpos.SetZ(disks_[idisk].zmax());
-    double dz = shmaxpos.Z() - disks_[idisk].zmax();
+    double dz = disks_[idisk].zmax()-shmaxpos.Z();
     // set the measurement time to correspond to the light propagation from showermax_, smeared by the resolution
     double tmeas = tr_.Gaus(tshmax+dz/vprop_.Z(),tres_);
     Line hline(hitpos,tmeas,vprop_,disks_[idisk].length());

@@ -35,7 +35,7 @@ namespace TrackToy {
           // disk 2 geometry
         } else if (disks_[1].rmin() < 0.0){
           iss >> rmin >> rmax >> zpos >> zhalf;
-          disks_[2] = HollowCylinder(rmin,rmax,zpos,zhalf);
+          disks_[1] = HollowCylinder(rmin,rmax,zpos,zhalf);
         } else {
           iss >> sprop >> shmax_ >> tres_ >> pres_ >> minpath_;
           // propagation velocity assumes crystals axis is along z
