@@ -248,7 +248,6 @@ int main(int argc, char **argv) {
   CeMinusSpectrumParams ceparams(endpoint);
   CeMinusSpectrum cespect(ceparams);
 
-
   // histograms
   TFile cetracksfile(tfile.c_str(),"RECREATE");
   TH1F* ipade = new TH1F("ipde","IPA dE",100,-3.0,0.0);
@@ -397,7 +396,8 @@ int main(int argc, char **argv) {
           ipade->Fill(ipade_);
           trkde->Fill(trackerde_);
           trknc->Fill(ntrackercells_);
-          // add calo hit TODO
+          // add calo hit
+          calo.simulateHits(*trkfield,mctraj,hits,mctol);
           // truncate the true trajectory
           mctraj.setRange(TimeRange(mctraj.range().begin(),mctraj.back().range().begin()+0.01));
           // get the true times at entrance and exit
