@@ -53,7 +53,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --spectrum s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --mustopeff f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --spectrum s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -71,8 +71,11 @@ int main(int argc, char **argv) {
   string sfile("Data/Schedule.txt"); // fit schedule
   string spectrum("CeMinus");
   string diofile("Data/DIOAl_fine.dat"); // this should be a parameter FIXME
+  double mustopeff(0.00145539); // mu stops/POT.  This comes from running MuBeam, which also produces the Mustops.root file.  These MUST be consistent to get physically correct results!!
+  double npot(3.6e20); // total number of POTs
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
-  double endrange(3.0);
+  double decayfrac(0.391); // target material specific FIXME!
+  double endrange(5.0); // spectrum generation range
   double tol(1e-5);
   double emass(0.511); //electron
   double cmin(-1.0), cmax(1.0);
@@ -105,6 +108,7 @@ int main(int argc, char **argv) {
 
   static struct option long_options[] = {
     {"mustopsfile",     required_argument, 0, 'm' },
+    {"mustopeff",     required_argument, 0, 'M' },
     {"bfield",     required_argument, 0, 'F' },
     {"trkfield",     required_argument, 0, 'k' },
     {"targetfile",     required_argument, 0, 't' },
@@ -119,7 +123,7 @@ int main(int argc, char **argv) {
     {"saveall",     required_argument, 0, 'S'  },
     {"ttree",     required_argument, 0, 'r'  },
     {"tfile",     required_argument, 0, 'R'  },
-    {"minncells",     required_argument, 0, 'M' },
+    {"minncells",     required_argument, 0, 'N' },
     {"printdetail",     required_argument, 0, 'p' },
     {"faildetail",     required_argument, 0, 'f' },
     {"cmin",     required_argument, 0, 'c' },
@@ -136,6 +140,8 @@ int main(int argc, char **argv) {
       case 'k' : trkfieldtype = atoi(optarg);
                  break;
       case 'm' : mfile = string(optarg);
+                 break;
+      case 'M' : mustopeff = atof(optarg);
                  break;
       case 't' : targetfile = string(optarg);
                  break;
@@ -163,7 +169,7 @@ int main(int argc, char **argv) {
                  break;
       case 'R' : tfile  = string(optarg);
                  break;
-      case 'M' : minncells = atoi(optarg);
+      case 'N' : minncells = atoi(optarg);
                  break;
       case 'p' : detail = (Config::printLevel)atoi(optarg);
                  break;

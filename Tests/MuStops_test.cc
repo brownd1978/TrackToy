@@ -32,15 +32,15 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: ParticleTest --mubeam s --bfieldfile s --muonrangefile s --targetfile s --tol f  --tstep f --ntrks i\n");
+  printf("Usage: ParticleTest --mubeam s --bfieldfile s --muonrangefile s --targetfile s --beameff f--tol f  --tstep f --nbeam i\n");
 }
 
 int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
-  int ntrks(-1);
+  int nbeam(-1);
   string mbfile("Data/Mu2e_MuBeam.root"), bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile("Data/Mu2eTarget.dat");
-  double tstep(0.01), tol(1e-3);
+  double beameff(0.0043407), tstep(0.01), tol(1e-3);
   double minmass(100.0); // select muons
 
   static struct option long_options[] = {
@@ -48,9 +48,10 @@ int main(int argc, char **argv) {
     {"bfieldfile",     required_argument, 0, 'F' },
     {"muonrangefile",     required_argument, 0, 'm' },
     {"targetfile",     required_argument, 0, 'T' },
+    {"beameff",     required_argument, 0, 'e' },
     {"tol",     required_argument, 0, 't' },
     {"tstep",     required_argument, 0, 's'  },
-    {"ntrks",     required_argument, 0, 'n'  },
+    {"nbeam",     required_argument, 0, 'n'  },
     {NULL, 0,0,0}
   };
   int opt;
@@ -66,11 +67,13 @@ int main(int argc, char **argv) {
                  break;
       case 'T' : tfile = string(optarg);
                  break;
+      case 'e' : beameff = atof(optarg);
+                 break;
       case 't' : tol = atof(optarg);
                  break;
       case 's' : tstep = atof(optarg);
                  break;
-      case 'n' : ntrks = atoi(optarg);
+      case 'n' : nbeam = atoi(optarg);
                  break;
       default: print_usage();
                exit(EXIT_FAILURE);
@@ -83,8 +86,9 @@ int main(int argc, char **argv) {
   // open the input muonbeam file of muon particles artificially stopped at the entrance to the DS; this comes from the running the Mu2e software StepPointMCDumper_module on the MuBeam(Cat) dataset produced by the beam production
   FileFinder filefinder;
   std::string fullfile = filefinder.fullFile(mbfile);
-  cout << " mbfile " << fullfile << endl;
   TFile* mubeamfile = TFile::Open(fullfile.c_str(),"READ");
+  cout << " mbfile " << fullfile << endl;
+  cout << "Beam muon/POT = " << beameff << endl;
   // find the TTree in the mbfile
   TDirectory* td = (TDirectory*)mubeamfile->Get("StepPointMCDumper");
   TTreeReader reader("nt",td);
@@ -105,7 +109,7 @@ int main(int argc, char **argv) {
   // muon range table
   MuonRange muonrange(rfile.c_str(),target.density());
   cout << " muon range file " << rfile << " has density " << muonrange.density() << " and ranges " << muonrange.rangeData().size() << endl;
-  int itrk(0);
+  int ibeam(0);
   // create a TTree for the output
   TFile mustopfile("MuStops.root","RECREATE");
   KinKal::VEC4 stoppos;
@@ -122,10 +126,18 @@ int main(int argc, char **argv) {
   TH1F* mustime = new TH1F("mustime","Muon stop Time;Time (ns)",100,0,500.0);
   TH2F* musxypos = new TH2F("musxypos","Muon stop XY position;X (mm);Y (mm)",40,-80.0,80,40,-80.0,80.0);
   unsigned nstopped(0), nmu(0);
-  while (reader.Next() && (ntrks < 0 || itrk < ntrks)) {
+  if(nbeam < 0)nbeam = ptree->GetEntries();
+  while (ibeam < nbeam) {
+    if(!reader.Next()){
+      reader.Restart();
+      if(!reader.Next()){
+        cout << "Unable to rewind file" << mubeamfile << endl;
+        return -2;
+      }
+    }
     // select by mass
     if(pstate->mass() > minmass){
-      ++itrk;
+      ++ibeam;
       // find the range for this muon (in mm)
       double murange = muonrange.rangeMomentum(pstate->momentum3().R());
       //      cout << "Found muon with momementum " << pstate->momentum3().R() << " range " << murange << endl;
@@ -190,7 +202,9 @@ int main(int argc, char **argv) {
       ++nmu;
     }
   }
-  cout << "found "<< nstopped << " stopped muons out of " << nmu << " ratio = " << (float)nstopped/nmu << endl;
+  // calculate the muon stopping efficiency
+  double mueff = beameff*nstopped/nmu;
+  cout << "found "<< nstopped << " stopped muons out of " << nmu << ", stopping ratio = " << (float)nstopped/nmu << " stops/POT " << mueff << endl;
   // now draw
   TCanvas* muscan = new TCanvas("MuonStops");
   muscan->Divide(2,2);
