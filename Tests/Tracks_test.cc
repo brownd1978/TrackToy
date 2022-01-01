@@ -53,7 +53,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --spectrum s --endpoint f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --spectrum s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -72,6 +72,7 @@ int main(int argc, char **argv) {
   string spectrum("CeMinus");
   string diofile("Data/DIOAl_fine.dat"); // this should be a parameter FIXME
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
+  double endrange(3.0);
   double tol(1e-5);
   double emass(0.511); //electron
   double cmin(-1.0), cmax(1.0);
@@ -111,6 +112,7 @@ int main(int argc, char **argv) {
     {"ipafile",     required_argument, 0, 'i' },
     {"spectrum",     required_argument, 0, 's'  },
     {"endpoint",     required_argument, 0, 'e' },
+    {"endrange",     required_argument, 0, 'E' },
     {"tol",     required_argument, 0, 'x' },
     {"ntrks",     required_argument, 0, 'n'  },
     {"draw",     required_argument, 0, 'd'  },
@@ -144,6 +146,8 @@ int main(int argc, char **argv) {
       case 's' : spectrum = string(optarg);
                  break;
       case 'e' : endpoint = atof(optarg);
+                 break;
+      case 'E' : endrange = atof(optarg);
                  break;
       case 'x' : tol = atof(optarg);
                  break;
@@ -258,7 +262,7 @@ int main(int argc, char **argv) {
     spect_ = new CeMinusSpectrum(ceparams);
   } else if (spectrum == "DIO") {
   // endpoint range should be a parameter FIXME
-    spect_ = new DIOSpectrum(diofile.c_str(),endpoint-5.0,endpoint);
+    spect_ = new DIOSpectrum(diofile.c_str(),endpoint-endrange,endpoint);
   } else {
     cout << "Unknown spectrum " << spectrum << ": aborting" << endl;
     return -2;
