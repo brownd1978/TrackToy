@@ -19,6 +19,7 @@
 #include "TrackToy/Detector/Calorimeter.hh"
 #include "TrackToy/Spectra/CeMinusSpectrum.hh"
 #include "TrackToy/Spectra/DIOSpectrum.hh"
+#include "TrackToy/Tests/TrkInfo.hh"
 #include "TFile.h"
 #include "TSystem.h"
 #include "TDirectory.h"
@@ -53,7 +54,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --mustopeff f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --spectrum s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minncells i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --mustopeff f --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -69,10 +70,11 @@ int main(int argc, char **argv) {
   string ipafile("Data/Mu2e_IPA.dat");
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
   string sfile("Data/Schedule.txt"); // fit schedule
-  string spectrum("CeMinus");
+  string process("CeMinus");
   string diofile("Data/DIOAl_fine.dat"); // this should be a parameter FIXME
   double mustopeff(0.00145539); // mu stops/POT.  This comes from running MuBeam, which also produces the Mustops.root file.  These MUST be consistent to get physically correct results!!
   double npot(3.6e20); // total number of POTs
+  double rmue(1e-16); // set as needed
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
   double decayfrac(0.391); // target material specific FIXME!
   double endrange(5.0); // spectrum generation range
@@ -83,7 +85,7 @@ int main(int argc, char **argv) {
   bool draw(false), ttree(true), saveall(false);
   string tfile("Tracks.root");
   int trkfieldtype(0);
-  int minncells(15); // minimum # of hits
+  int minnhits(15); // minimum # of hits
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
   TTree* trktree_(0);
@@ -91,9 +93,8 @@ int main(int argc, char **argv) {
   float origine_, targete_, ipae_, trackere_;
   VEC3 originpos_, originmom_;
   float origintime_;
-  int npieces_, ntarget_, nipa_, ntrackerarcs_, ntrackercells_;
-  int itrk_(0), kkstatus_, kkndof_, kknbf_, kknmat_, kknhit_, kkniter_;
-  float kkchisq_, kkprob_;
+  int ntarget_, nipa_, ntrackerarcs_, ntrackercells_;
+  TrkInfo tinfo_;
   VEC3 kkentmom_, kkmidmom_, kkextmom_;
   VEC3 mcentmom_, mcmidmom_, mcextmom_;
   VEC3 kkentpos_, kkmidpos_, kkextpos_;
@@ -114,16 +115,17 @@ int main(int argc, char **argv) {
     {"targetfile",     required_argument, 0, 't' },
     {"trackerfile",     required_argument, 0, 'T' },
     {"ipafile",     required_argument, 0, 'i' },
-    {"spectrum",     required_argument, 0, 's'  },
+    {"process",     required_argument, 0, 's'  },
     {"endpoint",     required_argument, 0, 'e' },
     {"endrange",     required_argument, 0, 'E' },
     {"tol",     required_argument, 0, 'x' },
     {"ntrks",     required_argument, 0, 'n'  },
+    {"npts",     required_argument, 0, 'q'  },
     {"draw",     required_argument, 0, 'd'  },
     {"saveall",     required_argument, 0, 'S'  },
     {"ttree",     required_argument, 0, 'r'  },
     {"tfile",     required_argument, 0, 'R'  },
-    {"minncells",     required_argument, 0, 'N' },
+    {"minnhits",     required_argument, 0, 'N' },
     {"printdetail",     required_argument, 0, 'p' },
     {"faildetail",     required_argument, 0, 'f' },
     {"cmin",     required_argument, 0, 'c' },
@@ -149,7 +151,7 @@ int main(int argc, char **argv) {
                  break;
       case 'i' : ipafile = string(optarg);
                  break;
-      case 's' : spectrum = string(optarg);
+      case 's' : process = string(optarg);
                  break;
       case 'e' : endpoint = atof(optarg);
                  break;
@@ -157,7 +159,7 @@ int main(int argc, char **argv) {
                  break;
       case 'x' : tol = atof(optarg);
                  break;
-      case 'N' : npts = atoi(optarg);
+      case 'q' : npts = atoi(optarg);
                  break;
       case 'n' : ntrks = atoi(optarg);
                  break;
@@ -169,7 +171,7 @@ int main(int argc, char **argv) {
                  break;
       case 'R' : tfile  = string(optarg);
                  break;
-      case 'N' : minncells = atoi(optarg);
+      case 'N' : minnhits = atoi(optarg);
                  break;
       case 'p' : detail = (Config::printLevel)atoi(optarg);
                  break;
@@ -260,17 +262,20 @@ int main(int argc, char **argv) {
   cout << config << endl;
   // randoms
   TRandom3 tr_; // random number generator
-  // setup spectrum
-  Spectrum* spect_(0);
-  if(spectrum == "CeMinus"){
+  // setup spectrum and normalization
+  Spectrum* spectrum(0);
+  tinfo_.wt_ = npot*mustopeff/(double)ntrks;
+    if(process == "CeMinus"){
     // endpoint energy should come from target material FIXME
     CeMinusSpectrumParams ceparams(endpoint);
-    spect_ = new CeMinusSpectrum(ceparams);
-  } else if (spectrum == "DIO") {
+    spectrum = new CeMinusSpectrum(ceparams);
+    tinfo_.wt_ *= (1.0-decayfrac)*rmue;
+  } else if (process == "DIO") {
   // endpoint range should be a parameter FIXME
-    spect_ = new DIOSpectrum(diofile.c_str(),endpoint-endrange,endpoint);
+    spectrum = new DIOSpectrum(diofile.c_str(),endpoint-endrange,endpoint);
+    tinfo_.wt_ *= decayfrac*spectrum->normalization();
   } else {
-    cout << "Unknown spectrum " << spectrum << ": aborting" << endl;
+    cout << "Unknown process " << process << ": aborting" << endl;
     return -2;
   }
 
@@ -282,7 +287,7 @@ int main(int argc, char **argv) {
   TH1F* trknc = new TH1F("trknc","Tracker N Cells;N Cells",100,0.001,100.0);
   if(ttree){
     trktree_ = new TTree("ce","ce");
-    trktree_->Branch("itrk",&itrk_,"itrk/I");
+    trktree_->Branch("tinfo",&tinfo_);
     trktree_->Branch("origine",&origine_,"origine/F");
     trktree_->Branch("originpos",&originpos_);
     trktree_->Branch("originmom",&originmom_);
@@ -293,9 +298,7 @@ int main(int argc, char **argv) {
     trktree_->Branch("ipae",&ipae_,"ipae/F");
     trktree_->Branch("nipa",&nipa_,"nipa/I");
     trktree_->Branch("ipade",&ipade_,"ipade/F");
-    trktree_->Branch("npieces",&npieces_,"npieces/I");
     trktree_->Branch("ntrackerarcs",&ntrackerarcs_,"ntrackerarcs/I");
-    trktree_->Branch("ntrackercells",&ntrackercells_,"ntrackercells/I");
     trktree_->Branch("trackere",&trackere_,"trackere/F");
     trktree_->Branch("trackerde",&trackerde_,"trackerde/F");
     trktree_->Branch("mcentmom",&mcentmom_);
@@ -305,13 +308,6 @@ int main(int argc, char **argv) {
     trktree_->Branch("mcmidpos",&mcmidpos_);
     trktree_->Branch("mcextpos",&mcextpos_);
     trktree_->Branch("seedtraj",&seedtraj_);
-    trktree_->Branch("kkstatus",&kkstatus_,"kkstatus/I");
-    trktree_->Branch("kkndof",&kkndof_,"kkndof/I");
-    trktree_->Branch("kknbf",&kknbf_,"kknbf/I");
-    trktree_->Branch("kknhit",&kknhit_,"kknhit/I");
-    trktree_->Branch("kknmat",&kknmat_,"kknmat/I");
-    trktree_->Branch("kkchisq",&kkchisq_,"kkchisq/F");
-    trktree_->Branch("kkprob",&kkprob_,"kkprob/F");
     trktree_->Branch("kkentmom",&kkentmom_);
     trktree_->Branch("kkmidmom",&kkmidmom_);
     trktree_->Branch("kkextmom",&kkextmom_);
@@ -325,8 +321,10 @@ int main(int argc, char **argv) {
   int icolor(kBlue);
   unsigned nfit(0), nfail(0), ndiv(0), npdiv(0), nlow(0), nconv(0), nuconv(0);
   if(ntrks<0)ntrks = mtree->GetEntries();
-  while (itrk_ < ntrks) {
-    ++itrk_;
+  unsigned itrk = 0;
+  while (itrk < ntrks) {
+    tinfo_.reset();
+    ++itrk;
     if(!reader.Next()){
       reader.Restart();
       if(!reader.Next()){
@@ -338,20 +336,15 @@ int main(int argc, char **argv) {
     // reset tree variables
     targetde_ = ipade_ = trackerde_ = 1.0;
     targete_ = ipae_ = -1.0;
-    npieces_ = ntarget_ = nipa_ = ntrackerarcs_ = ntrackercells_ = -1;
-    kkndof_ = kknbf_ = kknmat_ = kknhit_ = kkniter_ = -1;
-    kkchisq_ = kkprob_ = -1.0;
+    ntarget_ = nipa_ = ntrackerarcs_ = ntrackercells_ = -1;
     kkentmom_ = kkmidmom_ = kkextmom_ = VEC3();
     mcentmom_ = mcmidmom_ = mcextmom_ = VEC3();
     kkentpos_ = kkmidpos_ = kkextpos_ = VEC3();
     mcentpos_ = mcmidpos_ = mcextpos_ = VEC3();
-    kkstatus_ = KinKal::Status::unfit;
-    kkchisq_ = kkprob_ = -1;
-    kknbf_ = kknhit_ = kknmat_ = 0;
 
     // generate a random momentum
     double prob = tr_.Uniform(0.0,1.0);
-    origine_ = spect_->sample(prob);
+    origine_ = spectrum->sample(prob);
     // generate a random muon decay time; this should come from the target FIXME
     double tdecay = tr_.Exp(lifetime);
     // generate random phi and cos(theta)
@@ -408,11 +401,10 @@ int main(int argc, char **argv) {
 //        auto ttraj = mctraj;
 //        extendZ(ttraj,*trkfield, tracker.zMax(), mctol);
         tracker.simulateHits(*trkfield,mctraj,hits,xings,trackerinters,mctol);
-
-        ntrackercells_ = hits.size();
-        ntrackerarcs_ = trackerinters.size();
-        npieces_ = mctraj.pieces().size();
-        if(ntrackercells_ > minncells){
+        tinfo_.ncells_ = xings.size();
+        tinfo_.ntrkhits_ = hits.size();
+        tinfo_.narcs_ = trackerinters.size();
+        if(hits.size() >= minnhits){
 // calcluate the estart energy loss
           double trackerpath(0.0);
           double ke = cestate.energy() - cestate.mass();
@@ -424,9 +416,9 @@ int main(int argc, char **argv) {
           trkde->Fill(trackerde_);
           trknc->Fill(ntrackercells_);
           // add calo hit
-          calo.simulateHits(*trkfield,mctraj,hits,mctol);
+          tinfo_.ncalohits_ = calo.simulateHits(*trkfield,mctraj,hits,mctol);
           // truncate the true trajectory
-          mctraj.setRange(TimeRange(mctraj.range().begin(),mctraj.back().range().begin()+0.01));
+          mctraj.setRange(TimeRange(mctraj.range().begin(),mctraj.back().range().begin()+0.1));
           // get the true times at entrance and exit
           double mctent = ztime(mctraj,trackerinters.front().begin(),tracker.zMin());
           double mctext = ztime(mctraj,trackerinters.back().end(),tracker.zMax());
@@ -461,20 +453,20 @@ int main(int argc, char **argv) {
           if(fstat.status_ == Status::lowNDOF)nlow++;
           if(fstat.status_ == Status::diverged)ndiv++;
           if(fstat.status_ == Status::paramsdiverged)npdiv++;
-          kkstatus_ = fstat.status_;
-          kkchisq_ = fstat.chisq_.chisq();
-          kkprob_ = fstat.chisq_.probability();
-          kkndof_ = fstat.chisq_.nDOF();
+          tinfo_.kkstatus_ = fstat.status_;
+          tinfo_.kkchisq_ = fstat.chisq_.chisq();
+          tinfo_.kkprob_ = fstat.chisq_.probability();
+          tinfo_.kkndof_ = fstat.chisq_.nDOF();
           for(auto const& eff: kktrk.effects()) {
             const KKHIT* kkhit = dynamic_cast<const KKHIT*>(eff.get());
             const KKBF* kkbf = dynamic_cast<const KKBF*>(eff.get());
             const KKMAT* kkmat = dynamic_cast<const KKMAT*>(eff.get());
             if(kkhit != 0){
-              kknhit_++;
+              tinfo_.kknhit_++;
             } else if(kkmat != 0){
-              kknmat_++;
+              tinfo_.kknmat_++;
             } else if(kkbf != 0){
-              kknbf_++;
+              tinfo_.kknbf_++;
             }
           }
           if(fstat.usable()){
@@ -492,7 +484,7 @@ int main(int argc, char **argv) {
             kkmidpos_ = midstate.position3();
             kkextpos_ = extstate.position3();
           } else if(faildetail > Config::none) {
-            cout << "Bad Fit event " << itrk_ << " status " << kktrk.fitStatus() << endl;
+            cout << "Bad Fit event " << itrk << " status " << kktrk.fitStatus() << endl;
             cout << "True Traj " << mctraj << endl;
             cout << "Seed Traj " << seedtraj << endl;
             kktrk.print(cout,faildetail);

@@ -9,6 +9,20 @@ set( TEST_SOURCE_FILES
   Tracks_test.cc
 )
 
+# generate root dictionary
+ROOT_GENERATE_DICTIONARY(TestsDict
+    # headers to include in ROOT dictionary
+    TrkInfo.hh
+    LINKDEF LinkDef.h
+    MODULE Tests
+)
+# create shared library with ROOT dict
+add_library(Tests SHARED TestsDict)
+target_include_directories(Tests PRIVATE ${PROJECT_SOURCE_DIR}/..)
+target_include_directories(Tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+# link ROOT libraries
+target_link_libraries(Tests ${ROOT_LIBRARIES})
+
 include_directories(${PROJECT_SOURCE_DIR}/..)
 
 # Generate test targets

@@ -184,7 +184,7 @@ add_subdirectory(Spectra)
 add_subdirectory(General)
 add_subdirectory(Tests)
 
-install(TARGETS Spectra Detector General
+install(TARGETS Spectra Detector General Tests
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 

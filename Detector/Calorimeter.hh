@@ -26,7 +26,7 @@ namespace TrackToy {
       double positionResolution() const { return pres_; }
       double minPath() const { return minpath_; }
       void print(std::ostream& os) const;
-      template<class KTRAJ> void simulateHits(KinKal::BFieldMap const& bfield,
+      template<class KTRAJ> unsigned simulateHits(KinKal::BFieldMap const& bfield,
           KinKal::ParticleTrajectory<KTRAJ>& mctraj,
           std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>>& hits, double tol) const;
       template <class KTRAJ> void simulateHit(KinKal::ParticleTrajectory<KTRAJ> const& mctraj,
@@ -39,9 +39,10 @@ namespace TrackToy {
       double minpath_; // minimum path to generate a hit
       mutable TRandom3 tr_; // random number generator
   };
-  template<class KTRAJ> void Calorimeter::simulateHits(KinKal::BFieldMap const& bfield,
+  template<class KTRAJ> unsigned Calorimeter::simulateHits(KinKal::BFieldMap const& bfield,
       KinKal::ParticleTrajectory<KTRAJ>& mctraj,
       std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>>& hits, double tol) const {
+    unsigned retval(0);
    // extend through the first disk
     extendZ(mctraj,bfield,disk(0).zmax(),tol);
     double tstart = ztime(mctraj,mctraj.back().range().begin(),disk(0).zmin()-10.0);
@@ -54,9 +55,13 @@ namespace TrackToy {
     // go to the second disk
       extendZ(mctraj,bfield,disk(0).zmax(),tol);
       tstart = ztime(mctraj,mctraj.back().range().begin(),disk(1).zmin()-10.0);
-      disk(0).intersect(mctraj,tinters,tstart,tstep);
+      disk(1).intersect(mctraj,tinters,tstart,tstep);
     }
-    if(tinters.size() > 0 && tinters.front().range()*speed > minpath_)simulateHit(mctraj,tinters.front(),hits);
+    if(tinters.size() > 0 && tinters.front().range()*speed > minpath_){
+      simulateHit(mctraj,tinters.front(),hits);
+      retval ++;
+    }
+    return retval;
   }
 
   template <class KTRAJ> void Calorimeter::simulateHit(KinKal::ParticleTrajectory<KTRAJ> const& mctraj,
