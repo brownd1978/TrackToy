@@ -19,7 +19,7 @@
 #include "TrackToy/Detector/Calorimeter.hh"
 #include "TrackToy/Spectra/CeMinusSpectrum.hh"
 #include "TrackToy/Spectra/DIOSpectrum.hh"
-#include "TrackToy/Tests/TrkInfo.hh"
+#include "TrackToy/Test/TrkInfo.hh"
 #include "TFile.h"
 #include "TSystem.h"
 #include "TDirectory.h"
@@ -83,7 +83,7 @@ int main(int argc, char **argv) {
   double cmin(-1.0), cmax(1.0);
   size_t npts(5000);
   bool draw(false), ttree(true), saveall(false);
-  string tfile("Tracks.root");
+  string tfile("");
   int trkfieldtype(0);
   int minnhits(15); // minimum # of hits
   //  double mine(90.0); // minimum energy to simulate
@@ -94,8 +94,11 @@ int main(int argc, char **argv) {
   VEC3 originpos_, originmom_;
   float origintime_;
   int ntarget_, nipa_, ntrackerarcs_, ntrackercells_;
+  int itrk_;
+  double weight_; // event weight
   TrkInfo tinfo_;
   VEC3 kkentmom_, kkmidmom_, kkextmom_;
+  float kkentmomerr_, kkmidmomerr_, kkextmomerr_;
   VEC3 mcentmom_, mcmidmom_, mcextmom_;
   VEC3 kkentpos_, kkmidpos_, kkextpos_;
   VEC3 mcentpos_, mcmidpos_, mcextpos_;
@@ -196,6 +199,7 @@ int main(int argc, char **argv) {
   TTreeReaderValue<VEC4> mustoppos(reader, "Pos");
   TTree* mtree = (TTree*)mustopsfile->Get("MuStops");
   cout << "MuStops TTree from file " << mfile << " has " << mtree->GetEntries() << " Entries" << endl;
+  if(ntrks<0)ntrks = mtree->GetEntries();
   // build the materials database
   MatEnv::SimpleFileFinder ttfinder(std::string("TRACKTOY_SOURCE_DIR"),std::string("/Data/"));
   cout << "Using Materials file " << ttfinder.matMtrDictionaryFileName() << endl;
@@ -262,31 +266,36 @@ int main(int argc, char **argv) {
   cout << config << endl;
   // randoms
   TRandom3 tr_; // random number generator
-  // setup spectrum and normalization
+  // setup spectrum
   Spectrum* spectrum(0);
-  tinfo_.wt_ = npot*mustopeff/(double)ntrks;
+  bool flat(false);
     if(process == "CeMinus"){
     // endpoint energy should come from target material FIXME
     CeMinusSpectrumParams ceparams(endpoint);
     spectrum = new CeMinusSpectrum(ceparams);
-    tinfo_.wt_ *= (1.0-decayfrac)*rmue;
+    weight_ = (1.0-decayfrac)*rmue*npot*mustopeff/(double)ntrks;
   } else if (process == "DIO") {
-  // endpoint range should be a parameter FIXME
     spectrum = new DIOSpectrum(diofile.c_str(),endpoint-endrange,endpoint);
-    tinfo_.wt_ *= decayfrac*spectrum->normalization();
+    weight_ = decayfrac*rmue*npot*mustopeff/(double)ntrks/spectrum->normalization();
+  } else if (process == "FlatDIO") {
+    spectrum = new DIOSpectrum(diofile.c_str(),endpoint-endrange,endpoint);
+    flat = true;
   } else {
     cout << "Unknown process " << process << ": aborting" << endl;
     return -2;
   }
 
-  // histograms
-  TFile trkfile(tfile.c_str(),"RECREATE");
+  // output file
+  string ofile= tfile+process+string("Tracks.root");
+  TFile trkfile(ofile.c_str(),"RECREATE");
   TH1F* ipade = new TH1F("ipde","IPA dE",100,-3.0,0.0);
   TH1F* tarde = new TH1F("tarde","Target dE;dE (MeV)",100,-3.0,0.0);
   TH1F* trkde = new TH1F("trkde","Tracker dE;dE (MeV)",100,-3.0,0.0);
   TH1F* trknc = new TH1F("trknc","Tracker N Cells;N Cells",100,0.001,100.0);
   if(ttree){
     trktree_ = new TTree("ce","ce");
+    trktree_->Branch("itrk",&itrk_,"itrk/I");
+    trktree_->Branch("weight",&weight_,"weight/D");
     trktree_->Branch("tinfo",&tinfo_);
     trktree_->Branch("origine",&origine_,"origine/F");
     trktree_->Branch("originpos",&originpos_);
@@ -311,6 +320,9 @@ int main(int argc, char **argv) {
     trktree_->Branch("kkentmom",&kkentmom_);
     trktree_->Branch("kkmidmom",&kkmidmom_);
     trktree_->Branch("kkextmom",&kkextmom_);
+    trktree_->Branch("kkentmomerr",&kkentmomerr_,"kkentmomerr/F");
+    trktree_->Branch("kkmidmomerr",&kkmidmomerr_,"kkmidmomerr/F");
+    trktree_->Branch("kkextmomerr",&kkextmomerr_,"kkextmomerr/F");
     trktree_->Branch("kkentpos",&kkentpos_);
     trktree_->Branch("kkmidpos",&kkmidpos_);
     trktree_->Branch("kkextpos",&kkextpos_);
@@ -320,11 +332,10 @@ int main(int argc, char **argv) {
   // loop over stops
   int icolor(kBlue);
   unsigned nfit(0), nfail(0), ndiv(0), npdiv(0), nlow(0), nconv(0), nuconv(0);
-  if(ntrks<0)ntrks = mtree->GetEntries();
-  unsigned itrk = 0;
-  while (itrk < ntrks) {
+  itrk_ = 0;
+  while (itrk_ < ntrks) {
+    ++itrk_;
     tinfo_.reset();
-    ++itrk;
     if(!reader.Next()){
       reader.Restart();
       if(!reader.Next()){
@@ -338,13 +349,19 @@ int main(int argc, char **argv) {
     targete_ = ipae_ = -1.0;
     ntarget_ = nipa_ = ntrackerarcs_ = ntrackercells_ = -1;
     kkentmom_ = kkmidmom_ = kkextmom_ = VEC3();
+    kkentmomerr_ = kkmidmomerr_ = kkextmomerr_ = -1.0;
     mcentmom_ = mcmidmom_ = mcextmom_ = VEC3();
     kkentpos_ = kkmidpos_ = kkextpos_ = VEC3();
     mcentpos_ = mcmidpos_ = mcextpos_ = VEC3();
 
-    // generate a random momentum
-    double prob = tr_.Uniform(0.0,1.0);
-    origine_ = spectrum->sample(prob);
+    // generate a random energy
+    if(flat){
+      origine_ = tr_.Uniform(endpoint-endrange,endpoint);
+      weight_ = decayfrac*rmue*npot*mustopeff*spectrum->rate(origine_)/(double)ntrks;
+    } else {
+      double prob = tr_.Uniform(0.0,1.0);
+      origine_ = spectrum->sample(prob);
+    }
     // generate a random muon decay time; this should come from the target FIXME
     double tdecay = tr_.Exp(lifetime);
     // generate random phi and cos(theta)
@@ -401,9 +418,9 @@ int main(int argc, char **argv) {
 //        auto ttraj = mctraj;
 //        extendZ(ttraj,*trkfield, tracker.zMax(), mctol);
         tracker.simulateHits(*trkfield,mctraj,hits,xings,trackerinters,mctol);
-        tinfo_.ncells_ = xings.size();
-        tinfo_.ntrkhits_ = hits.size();
-        tinfo_.narcs_ = trackerinters.size();
+        tinfo_.ncells = xings.size();
+        tinfo_.ntrkhits = hits.size();
+        tinfo_.narcs = trackerinters.size();
         if(hits.size() >= minnhits){
 // calcluate the estart energy loss
           double trackerpath(0.0);
@@ -416,7 +433,7 @@ int main(int argc, char **argv) {
           trkde->Fill(trackerde_);
           trknc->Fill(ntrackercells_);
           // add calo hit
-          tinfo_.ncalohits_ = calo.simulateHits(*trkfield,mctraj,hits,mctol);
+          tinfo_.ncalohits = calo.simulateHits(*trkfield,mctraj,hits,mctol);
           // truncate the true trajectory
           mctraj.setRange(TimeRange(mctraj.range().begin(),mctraj.back().range().begin()+0.1));
           // get the true times at entrance and exit
@@ -453,20 +470,20 @@ int main(int argc, char **argv) {
           if(fstat.status_ == Status::lowNDOF)nlow++;
           if(fstat.status_ == Status::diverged)ndiv++;
           if(fstat.status_ == Status::paramsdiverged)npdiv++;
-          tinfo_.kkstatus_ = fstat.status_;
-          tinfo_.kkchisq_ = fstat.chisq_.chisq();
-          tinfo_.kkprob_ = fstat.chisq_.probability();
-          tinfo_.kkndof_ = fstat.chisq_.nDOF();
+          tinfo_.kkstatus = fstat.status_;
+          tinfo_.kkchisq = fstat.chisq_.chisq();
+          tinfo_.kkprob = fstat.chisq_.probability();
+          tinfo_.kkndof = fstat.chisq_.nDOF();
           for(auto const& eff: kktrk.effects()) {
             const KKHIT* kkhit = dynamic_cast<const KKHIT*>(eff.get());
             const KKBF* kkbf = dynamic_cast<const KKBF*>(eff.get());
             const KKMAT* kkmat = dynamic_cast<const KKMAT*>(eff.get());
             if(kkhit != 0){
-              tinfo_.kknhit_++;
+              tinfo_.kknhit++;
             } else if(kkmat != 0){
-              tinfo_.kknmat_++;
+              tinfo_.kknmat++;
             } else if(kkbf != 0){
-              tinfo_.kknbf_++;
+              tinfo_.kknbf++;
             }
           }
           if(fstat.usable()){
@@ -480,11 +497,14 @@ int main(int argc, char **argv) {
             kkentmom_ = entstate.momentum3();
             kkmidmom_ = midstate.momentum3();
             kkextmom_ = extstate.momentum3();
+            kkentmomerr_ = sqrt(entstate.momentumVariance());
+            kkmidmomerr_ = sqrt(midstate.momentumVariance());
+            kkextmomerr_ = sqrt(extstate.momentumVariance());
             kkentpos_ = entstate.position3();
             kkmidpos_ = midstate.position3();
             kkextpos_ = extstate.position3();
           } else if(faildetail > Config::none) {
-            cout << "Bad Fit event " << itrk << " status " << kktrk.fitStatus() << endl;
+            cout << "Bad Fit event " << itrk_ << " status " << kktrk.fitStatus() << endl;
             cout << "True Traj " << mctraj << endl;
             cout << "Seed Traj " << seedtraj << endl;
             kktrk.print(cout,faildetail);
