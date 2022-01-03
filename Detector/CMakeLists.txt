@@ -1,9 +1,11 @@
 add_library(Detector SHARED
-   Tracker.cc
-   Target.cc
-   IPA.cc
-   EStar.cc
-)
+    Calorimeter.cc
+    Tracker.cc
+    Target.cc
+    HollowCylinder.cc
+    IPA.cc
+    EStar.cc
+    )
 
 # set top-level directory as include root
 target_include_directories(Detector PRIVATE ${PROJECT_SOURCE_DIR}/..)

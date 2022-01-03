@@ -165,13 +165,13 @@ if (CMAKE_BUILD_TYPE MATCHES "^Debug$")
       # using Clang / LLVM
       link_libraries(-fprofile-instr-generate)
       add_custom_target(coverage
-        COMMAND gcovr --gcov-executable "llvm-cov gcov" -r ${CMAKE_SOURCE_DIR} ${PROJECT_BINARY_DIR} -s --exclude-directories Tests
+        COMMAND gcovr --gcov-executable "llvm-cov gcov" -r ${CMAKE_SOURCE_DIR} ${PROJECT_BINARY_DIR} -s --exclude-directories Mains
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
       )
     elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
       link_libraries(-lgcov) # gcov symbols
       add_custom_target(coverage
-        COMMAND gcovr -r ${CMAKE_SOURCE_DIR} ${PROJECT_BINARY_DIR} -s --exclude-directories Tests
+        COMMAND gcovr -r ${CMAKE_SOURCE_DIR} ${PROJECT_BINARY_DIR} -s --exclude-directories Mains
         WORKING_DIRECTORY ${PROJECT_BINARY_DIR}
       )
     endif()
@@ -182,11 +182,12 @@ endif()
 add_subdirectory(Detector)
 add_subdirectory(Spectra)
 add_subdirectory(General)
-add_subdirectory(Tests)
+add_subdirectory(Test)
+add_subdirectory(Mains)
 
-install(TARGETS Spectra Detector General
+install(TARGETS Spectra Detector General Test
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+  PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
 
 # install headers
 # Globbing here is fine because it does not influence build behaviour
@@ -211,14 +212,14 @@ fi
 export DEBUG_LEVEL=${CMAKE_BUILD_TYPE}
 
 # Linux:
-export LD_LIBRARY_PATH=\${PWD}/lib:\${LD_LIBRARY_PATH}
+export LD_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}/lib:\${LD_LIBRARY_PATH}
 
 # MacOS:
-export DYLD_FALLBACK_LIBRARY_PATH=\${PWD}/lib:\${ROOT_LIB}:\${DYLD_FALLBACK_LIBRARY_PATH}
+export DYLD_FALLBACK_LIBRARY_PATH=${CMAKE_CURRENT_BINARY_DIR}/lib:\${ROOT_LIB}:\${DYLD_FALLBACK_LIBRARY_PATH}
 
 # Define the TrackToy package for others:
 export TRACKTOY_SOURCE_DIR=${CMAKE_SOURCE_DIR}
-export TRACKTOY_LIBRARY_DIR=\${PWD}/lib
+export TRACKTOY_LIBRARY_DIR=${CMAKE_CURRENT_BINARY_DIR}/lib
 
 ")
 

@@ -13,15 +13,13 @@
 
   class CeMinusSpectrum : public Spectrum {
     public:
-      CeMinusSpectrum(CeMinusSpectrumParams const& params, double emin=0.0, double emax = std::numeric_limits<float>::max());
+      CeMinusSpectrum(CeMinusSpectrumParams const& params);
       double rate(double energy) const override;
-      double integral(double elow, double ehigh, unsigned nstep=10000 ) const override;
+      double integral(double elow, double ehigh, unsigned nstep=100 ) const override;
       double sample(double prob) const override;
       auto const& params() const { return params_; }
     private:
       CeMinusSpectrumParams params_;
-      std::vector<double> cdf_; // CDF (for random sampling) (constant energy bins)
-      double eStep_; // energy step for the above
   };
 }
 #endif

@@ -1,0 +1,34 @@
+#
+# Dump Beam StepPoints
+#
+#include "Offline/fcl/standardServices.fcl"
+
+process_name : StepDumper
+
+services : {
+  message : @local::default_message
+  GlobalConstantsService  : { inputFile      : "Offline/GlobalConstantsService/data/globalConstants_01.txt" }
+  GeometryService	    : { inputFile      : "Offline/Mu2eG4/geom/geom_common.txt"
+    simulatedDetector   : { tool_type: "Mu2e" }
+  }
+}
+
+
+source : {
+  module_type : RootInput
+}
+
+physics : {
+  analyzers: {
+    StepPointMCDumper  : {
+      module_type : StepPointMCDumper
+      hitsInputTag : "BeamFilter:Beam"
+      writeVDHit : false
+      writeParticleState : true
+      detectorSystem : true
+    }
+  }
+  e1        : [StepPointMCDumper]
+  end_paths : [e1]
+}
+services.GeometryService.inputFile      : "Offline/Mu2eG4/geom/geom_common_no_tsu_ps.txt"

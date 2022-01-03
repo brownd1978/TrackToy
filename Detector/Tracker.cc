@@ -10,15 +10,19 @@
 #include <stdexcept>
 
 namespace TrackToy {
-  Tracker::Tracker(MatEnv::MatDBInfo const& matdbinfo,std::string const& tgtfile):
+  Tracker::Tracker(MatEnv::MatDBInfo const& matdbinfo,std::string const& trkfile):
     ncells_(0), cellDensity_(-1.0), density_(-1.0), smat_(0),
     vdrift_(-1.0), vprop_(-1.0), sigt_(-1.0), sigl_(-1.0), lrdoca_(-1.0), hiteff_(-1.0)
   {
     FileFinder filefinder;
-    std::string fullfile = filefinder.fullFile(tgtfile);
+    std::string fullfile = filefinder.fullFile(trkfile);
     std::string line;
     static std::string comment("#");
-    std::ifstream tgt_stream(fullfile);
+    std::ifstream tgt_stream(fullfile,std::ios_base::in);
+    if(tgt_stream.fail()){
+      std::string errmsg = std::string("File doesn't exist" )+ fullfile;
+      throw std::invalid_argument(errmsg.c_str());
+    }
     double rmin(-1.0), rmax(-1.0), zpos(-1.0), zhalf(-1.0);
     double rcell(-1.0), lcell(-1.0), rwire(-1.0), wthick(-1.0);
     unsigned orient(0);
@@ -45,6 +49,7 @@ namespace TrackToy {
           double cmass = smat_->wallMaterial().density()*2.0*M_PI*rcell*lcell*wthick
             + smat_->gasMaterial().density()*M_PI*rcell*rcell*lcell
             + smat_->wireMaterial().density()*M_PI*rwire*rwire*lcell;
+          std::cout << "cell mass = " << cmass << std::endl;
           density_ = cmass*ncells_/cyl_.volume();
         } else if(vdrift_ < 0.0){
           // hit properties

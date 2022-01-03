@@ -9,6 +9,7 @@
 #include "TrackToy/General/TrajUtilities.hh"
 #include <vector>
 #include <algorithm>
+#include <iostream>
 namespace TrackToy {
   using TimeRanges = std::vector<KinKal::TimeRange>;
   class HollowCylinder {
@@ -34,6 +35,7 @@ namespace TrackToy {
         return rho > rmin() && rho < rmax() && pos.Z() > zmin() && pos.Z() < zmax();
       }
   };
+  std::ostream& operator <<(std::ostream& ost, HollowCylinder const& hcyl);
 
   template<class PKTRAJ> void HollowCylinder::intersect(PKTRAJ const& pktraj, TimeRanges& tranges, double tstart, double tstep) const {
     tranges.clear();
@@ -91,6 +93,6 @@ namespace TrackToy {
     }
     // finish the last range
     if(inside)tranges.back().end() = std::min(ttest,pktraj.range().end());
-  }
+ }
 }
 #endif
