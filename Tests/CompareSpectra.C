@@ -50,7 +50,7 @@ void CompareSpectra(const char* diofile="FlatDIOTracks.root",const char* cefile=
   char tline[80];
   snprintf(tline,80,"t0>%3.1f",timecut);
   info->AddText(tline);
-  snprintf(tline,80,"momerr>%3.3f",momerrcut);
+  snprintf(tline,80,"momerr<%3.3f",momerrcut);
   info->AddText(tline);
   snprintf(tline,80,"hitfrac>%3.3f",hitfraccut);
   info->AddText(tline);
