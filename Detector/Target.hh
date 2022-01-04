@@ -23,7 +23,7 @@ namespace TrackToy {
       auto cylinder() const { return cyl_; }
       // find the  energy loss (mean and RMS) from estar for a path through the target
       double electronEnergyLoss(double ke, double pathlen) const;
-      double protonEnergyLoss(double ke, double pathlen) const; // TODO
+      double protonEnergyLoss(double ke, double pathlen) const; // not yet implemented TODO
       std::string material() const;
       // extend a trajectory through the target.  Return value specifies if the particle continues downsream (true) or stops in the target or exits the field upstream (false)
       template<class PKTRAJ> bool extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj,TimeRanges& intersections) const;

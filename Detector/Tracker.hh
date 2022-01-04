@@ -121,7 +121,7 @@ namespace TrackToy {
       static double pi_over_3 = M_PI/3.0;
       // generate azimuthal angle WRT the hit
       double wphi = tr_.Uniform(0.0,pi_over_3);
-// acceptance test, assuming a triangular inner hole
+// acceptance test, using a triangular inner hole
       double rmax = 0.5*cyl_.rmax()/cos(wphi);
       if(pos.Rho() < rmax)return false;
       auto rdir = PerpVector(pos,zdir).Unit(); // radial direction
@@ -131,7 +131,7 @@ namespace TrackToy {
     }
     // create the line representing this hit's wire.  The line embeds the timing information
     KinKal::Line const& wline = wireLine(mctraj,wdir,htime);
-    // find the POCA between the particle trajectory and the wire line
+    // find the TPOCA between the particle trajectory and the wire line
     KinKal::CAHint tphint(htime,htime);
     static double tprec(1e-8); // TPOCA precision
     PTCA tp(mctraj,wline,tphint,tprec);
@@ -216,6 +216,7 @@ namespace TrackToy {
     auto endpos = endpiece.position4(txing);
     std::array<double,3> dmom {0.0,0.0,0.0}, momvar {0.0,0.0,0.0};
     sxing->materialEffects(mctraj,KinKal::TimeDir::forwards, dmom, momvar);
+
     for(int idir=0;idir<=KinKal::MomBasis::phidir_; idir++) {
       auto mdir = static_cast<KinKal::MomBasis::Direction>(idir);
       double momsig = sqrt(momvar[idir]);
@@ -226,6 +227,7 @@ namespace TrackToy {
           dm = tr_.Gaus(dmom[idir],momsig);
           break;
         case KinKal::MomBasis::momdir_ :
+    // calculate a smeared energy loss using a Moyal distribution
           dm = std::min(0.0,tr_.Gaus(dmom[idir],momsig));
           break;
         default:
