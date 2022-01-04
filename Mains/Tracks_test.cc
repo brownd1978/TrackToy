@@ -9,7 +9,7 @@
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/MatEnv/DetMaterial.hh"
 #include "KinKal/Fit/Track.hh"
-#include "KinKal/Examples/ScintHit.hh" // add scint hit TODO
+#include "KinKal/Examples/ScintHit.hh"
 #include "TrackToy/General/FileFinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/HollowCylinder.hh"
@@ -47,6 +47,7 @@
 #include <vector>
 #include <string>
 #include <cstring>
+#include <chrono>
 
 //using namespace TrackToy;
 using namespace std;
@@ -64,6 +65,7 @@ int main(int argc, char **argv) {
   using KKHIT = HitConstraint<KTRAJ>;
   using KKMAT = Material<KTRAJ>;
   using KKBF = BFieldEffect<KTRAJ>;
+  using Clock = std::chrono::high_resolution_clock;
   int ntrks(-1);
   string bfile("Data/DSMapDump.dat"), mfile("MuStops.root"), targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
   string calofile("Data/Mu2eCalo.dat");
@@ -93,16 +95,16 @@ int main(int argc, char **argv) {
   float origine_, targete_, ipae_, trackere_;
   VEC3 originpos_, originmom_;
   float origintime_;
-  int ntarget_, nipa_, ntrackerarcs_, ntrackercells_;
+  int ntarget_, nipa_;
   int itrk_;
   double weight_; // event weight
   TrkInfo tinfo_;
   VEC3 kkentmom_, kkmidmom_, kkextmom_;
   float kkentmomerr_, kkmidmomerr_, kkextmomerr_;
+  float kkentt0_, kkmidt0_, kkextt0_;
   VEC3 mcentmom_, mcmidmom_, mcextmom_;
   VEC3 kkentpos_, kkmidpos_, kkextpos_;
   VEC3 mcentpos_, mcmidpos_, mcextpos_;
-  KTRAJ seedtraj_;
   // fit parameters
   KinKal::DVEC sigmas(0.5, 0.5, 0.5, 0.5, 0.002, 0.5); // expected parameter sigmas for loop helix
   double seedsmear(1.0);
@@ -269,14 +271,15 @@ int main(int argc, char **argv) {
   // setup spectrum
   Spectrum* spectrum(0);
   bool flat(false);
+  double wfac = npot*mustopeff/(double)ntrks;
     if(process == "CeMinus"){
     // endpoint energy should come from target material FIXME
     CeMinusSpectrumParams ceparams(endpoint);
     spectrum = new CeMinusSpectrum(ceparams);
-    weight_ = (1.0-decayfrac)*rmue*npot*mustopeff/(double)ntrks;
+    weight_ = (1.0-decayfrac)*rmue*wfac;
   } else if (process == "DIO") {
     spectrum = new DIOSpectrum(diofile.c_str(),endpoint-endrange,endpoint);
-    weight_ = decayfrac*rmue*npot*mustopeff/(double)ntrks/spectrum->normalization();
+    weight_ = decayfrac*wfac/spectrum->normalization();
   } else if (process == "FlatDIO") {
     spectrum = new DIOSpectrum(diofile.c_str(),endpoint-endrange,endpoint);
     flat = true;
@@ -284,6 +287,7 @@ int main(int argc, char **argv) {
     cout << "Unknown process " << process << ": aborting" << endl;
     return -2;
   }
+  // timing
 
   // output file
   string ofile= tfile+process+string("Tracks.root");
@@ -293,7 +297,7 @@ int main(int argc, char **argv) {
   TH1F* trkde = new TH1F("trkde","Tracker dE;dE (MeV)",100,-3.0,0.0);
   TH1F* trknc = new TH1F("trknc","Tracker N Cells;N Cells",100,0.001,100.0);
   if(ttree){
-    trktree_ = new TTree("ce","ce");
+    trktree_ = new TTree("trks","trks");
     trktree_->Branch("itrk",&itrk_,"itrk/I");
     trktree_->Branch("weight",&weight_,"weight/D");
     trktree_->Branch("tinfo",&tinfo_);
@@ -307,7 +311,6 @@ int main(int argc, char **argv) {
     trktree_->Branch("ipae",&ipae_,"ipae/F");
     trktree_->Branch("nipa",&nipa_,"nipa/I");
     trktree_->Branch("ipade",&ipade_,"ipade/F");
-    trktree_->Branch("ntrackerarcs",&ntrackerarcs_,"ntrackerarcs/I");
     trktree_->Branch("trackere",&trackere_,"trackere/F");
     trktree_->Branch("trackerde",&trackerde_,"trackerde/F");
     trktree_->Branch("mcentmom",&mcentmom_);
@@ -316,13 +319,15 @@ int main(int argc, char **argv) {
     trktree_->Branch("mcentpos",&mcentpos_);
     trktree_->Branch("mcmidpos",&mcmidpos_);
     trktree_->Branch("mcextpos",&mcextpos_);
-    trktree_->Branch("seedtraj",&seedtraj_);
     trktree_->Branch("kkentmom",&kkentmom_);
     trktree_->Branch("kkmidmom",&kkmidmom_);
     trktree_->Branch("kkextmom",&kkextmom_);
     trktree_->Branch("kkentmomerr",&kkentmomerr_,"kkentmomerr/F");
     trktree_->Branch("kkmidmomerr",&kkmidmomerr_,"kkmidmomerr/F");
     trktree_->Branch("kkextmomerr",&kkextmomerr_,"kkextmomerr/F");
+    trktree_->Branch("kkentt0",&kkentt0_,"kkentt0/F");
+    trktree_->Branch("kkmidt0",&kkmidt0_,"kkmidt0/F");
+    trktree_->Branch("kkextt0",&kkextt0_,"kkextt0/F");
     trktree_->Branch("kkentpos",&kkentpos_);
     trktree_->Branch("kkmidpos",&kkmidpos_);
     trktree_->Branch("kkextpos",&kkextpos_);
@@ -331,10 +336,13 @@ int main(int argc, char **argv) {
   std::vector<TPolyLine3D*> plhel;
   // loop over stops
   int icolor(kBlue);
+
   unsigned nfit(0), nfail(0), ndiv(0), npdiv(0), nlow(0), nconv(0), nuconv(0);
   itrk_ = 0;
+  auto start = Clock::now();
   while (itrk_ < ntrks) {
     ++itrk_;
+    if(fmod(itrk_,ntrks/10) == 0)cout << "Processing track " << itrk_ << endl;
     tinfo_.reset();
     if(!reader.Next()){
       reader.Restart();
@@ -347,9 +355,10 @@ int main(int argc, char **argv) {
     // reset tree variables
     targetde_ = ipade_ = trackerde_ = 1.0;
     targete_ = ipae_ = -1.0;
-    ntarget_ = nipa_ = ntrackerarcs_ = ntrackercells_ = -1;
+    ntarget_ = nipa_ = -1;
     kkentmom_ = kkmidmom_ = kkextmom_ = VEC3();
     kkentmomerr_ = kkmidmomerr_ = kkextmomerr_ = -1.0;
+    kkentt0_ = kkmidt0_ = kkextt0_ = -1.0;
     mcentmom_ = mcmidmom_ = mcextmom_ = VEC3();
     kkentpos_ = kkmidpos_ = kkextpos_ = VEC3();
     mcentpos_ = mcmidpos_ = mcextpos_ = VEC3();
@@ -357,7 +366,7 @@ int main(int argc, char **argv) {
     // generate a random energy
     if(flat){
       origine_ = tr_.Uniform(endpoint-endrange,endpoint);
-      weight_ = decayfrac*rmue*npot*mustopeff*spectrum->rate(origine_)/(double)ntrks;
+      weight_ = wfac*spectrum->rate(origine_);
     } else {
       double prob = tr_.Uniform(0.0,1.0);
       origine_ = spectrum->sample(prob);
@@ -414,9 +423,6 @@ int main(int argc, char **argv) {
           KTRAJ endtraj(pstate,bend,TimeRange(tent,mctraj.range().end()));
           mctraj.append(endtraj);
         }
-        // test
-//        auto ttraj = mctraj;
-//        extendZ(ttraj,*trkfield, tracker.zMax(), mctol);
         tracker.simulateHits(*trkfield,mctraj,hits,xings,trackerinters,mctol);
         tinfo_.ncells = xings.size();
         tinfo_.ntrkhits = hits.size();
@@ -431,7 +437,7 @@ int main(int argc, char **argv) {
           tarde->Fill(targetde_);
           ipade->Fill(ipade_);
           trkde->Fill(trackerde_);
-          trknc->Fill(ntrackercells_);
+          trknc->Fill(tinfo_.ncells);
           // add calo hit
           tinfo_.ncalohits = calo.simulateHits(*trkfield,mctraj,hits,mctol);
           // truncate the true trajectory
@@ -459,7 +465,6 @@ int main(int argc, char **argv) {
             seedtraj.params().covariance()[ipar][ipar] = perr*perr;
             seedtraj.params().parameters()[ipar] += tr_.Gaus(0.0,perr);
           }
-          seedtraj_ = seedtraj;
           KKTRK kktrk(config,*trkfield,seedtraj,hits,xings);
           nfit++;
           // fill fit information
@@ -489,8 +494,8 @@ int main(int argc, char **argv) {
           if(fstat.usable()){
             auto const& kktraj = kktrk.fitTraj();
             double kktent = ztime(kktraj,kktraj.range().begin(),tracker.zMin());
+            double kktmid = ztime(kktraj,kktraj.range().mid(),tracker.zMid());
             double kktext = ztime(kktraj,kktraj.range().end(),tracker.zMax());
-            double kktmid = ztime(kktraj,0.5*(kktent+kktext),tracker.zMid());
             auto entstate = kktraj.stateEstimate(kktent);
             auto midstate = kktraj.stateEstimate(kktmid);
             auto extstate = kktraj.stateEstimate(kktext);
@@ -500,6 +505,10 @@ int main(int argc, char **argv) {
             kkentmomerr_ = sqrt(entstate.momentumVariance());
             kkmidmomerr_ = sqrt(midstate.momentumVariance());
             kkextmomerr_ = sqrt(extstate.momentumVariance());
+// find time a crossing the entrance, mid, and exit z
+            kkentt0_ = ztime(kktraj,kktraj.range().begin(),tracker.zMin());
+            kkmidt0_ = ztime(kktraj,kktraj.range().mid(),tracker.zMid());
+            kkextt0_ = ztime(kktraj,kktraj.range().end(),tracker.zMax());
             kkentpos_ = entstate.position3();
             kkmidpos_ = midstate.position3();
             kkextpos_ = extstate.position3();
@@ -530,6 +539,8 @@ int main(int argc, char **argv) {
     if(saveall)trktree_->Fill();
   }
 
+  auto stop = Clock::now();
+  double duration = std::chrono::duration_cast<std::chrono::nanoseconds>(stop - start).count();
   cout
     << nfit << " KinKal fits "
     << nconv << " Converged fits "
@@ -537,20 +548,21 @@ int main(int argc, char **argv) {
     << nfail << " Failed fits "
     << nlow << " low NDOF fits "
     << ndiv << " Diverged fits "
-    << npdiv << " ParameterDiverged fits " << endl;
+    << npdiv << " ParameterDiverged fits "
+    << duration/double(ntrks) << " nanoseconds/track" << endl;
   // Canvas of basic parameters
-  TCanvas* ctrkcan = new TCanvas("CeTrack");
-  ctrkcan->Divide(2,2);
-  ctrkcan->cd(1);
+  TCanvas* trkcan = new TCanvas("Tracks");
+  trkcan->Divide(2,2);
+  trkcan->cd(1);
   tarde->Draw();
-  ctrkcan->cd(2);
+  trkcan->cd(2);
   ipade->Draw();
-  ctrkcan->cd(3);
+  trkcan->cd(3);
   trkde->Draw();
-  ctrkcan->cd(4);
+  trkcan->cd(4);
   trknc->Draw();
 
-  ctrkcan->Write();
+  trkcan->Write();
 
   if(draw){
     TCanvas* trkcan = new TCanvas("Tracks");

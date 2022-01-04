@@ -1,9 +1,9 @@
 #
-#  Parameters describing the Mu2e tracker
+#  Parameters describing the Mu2e-ii tracker
 # Volume information: rmin rmax zpos zhalf
 350.0 700.0 0.0 1500.0
 # Cell information: orientation (0=azimuthal, 1=axial), Ncells, cell radius, cell length, wall thickness, wire radius
-0 20736 2.5 800.0 0.015 0.0125
+0 20736 2.5 800.0 0.008 0.0125
 # Hit information: drift velocity (mm/ns), propagation velocity (mm/ns), drift resolution (ns), propagation resolution (ns), min LR doca (mm), hit efficiency
 0.065 200 6.0 0.1 0.5 0.95
 

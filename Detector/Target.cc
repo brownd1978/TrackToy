@@ -66,6 +66,7 @@ namespace TrackToy {
   double Target::electronEnergyLoss(double ke, double pathlen) const {
     return estar_.dEIonization(ke)*density()*pathlen/10.0; // only ionization energy loss is relevant for thin material
     // note this corrects for density being in gm/cm^3 (estar table is relative to that)
+    // include Moyal fluctuations TODO
   }
 
 }
