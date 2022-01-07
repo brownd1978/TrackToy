@@ -257,11 +257,19 @@ int main(int argc, char **argv) {
   }
   string line;
   unsigned nmiter(0);
+  double temp, convdchisq, divdchisq;
   while (getline(ifs,line)){
     if(strncmp(line.c_str(),"#",1)!=0){
       istringstream ss(line);
-      MetaIterConfig mconfig(ss);
-      mconfig.miter_ = nmiter++;
+      ss >> temp >> convdchisq >> divdchisq;
+      MetaIterConfig mconfig(temp, convdchisq, divdchisq, nmiter++);
+      double mindoca(-1.0),maxdoca(-1.0);
+      ss >> mindoca >> maxdoca;
+      if(mindoca >0.0 || maxdoca > 0.0){
+// setup and insert the updater
+        SimpleWireHitUpdater updater(mindoca,maxdoca);
+        mconfig.updaters_.push_back(std::any(updater));
+      }
       config.schedule_.push_back(mconfig);
     }
   }
