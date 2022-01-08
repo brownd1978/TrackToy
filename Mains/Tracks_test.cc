@@ -55,7 +55,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --mustopeff f --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --mustopeff f --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --fitschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -120,6 +120,7 @@ int main(int argc, char **argv) {
     {"targetfile",     required_argument, 0, 't' },
     {"trackerfile",     required_argument, 0, 'T' },
     {"ipafile",     required_argument, 0, 'i' },
+    {"fitschedule",     required_argument, 0, 'X' },
     {"process",     required_argument, 0, 's'  },
     {"endpoint",     required_argument, 0, 'e' },
     {"endrange",     required_argument, 0, 'E' },
@@ -155,6 +156,8 @@ int main(int argc, char **argv) {
       case 'T' : trackerfile = string(optarg);
                  break;
       case 'i' : ipafile = string(optarg);
+                 break;
+      case 'X' : sfile = string(optarg);
                  break;
       case 's' : process = string(optarg);
                  break;
@@ -257,11 +260,19 @@ int main(int argc, char **argv) {
   }
   string line;
   unsigned nmiter(0);
+  double temp, convdchisq, divdchisq;
   while (getline(ifs,line)){
     if(strncmp(line.c_str(),"#",1)!=0){
       istringstream ss(line);
-      MetaIterConfig mconfig(ss);
-      mconfig.miter_ = nmiter++;
+      ss >> temp >> convdchisq >> divdchisq;
+      MetaIterConfig mconfig(temp, convdchisq, divdchisq, nmiter++);
+      double mindoca(-1.0),maxdoca(-1.0);
+      ss >> mindoca >> maxdoca;
+      if(mindoca >0.0 || maxdoca > 0.0){
+// setup and insert the updater
+        SimpleWireHitUpdater updater(mindoca,maxdoca);
+        mconfig.updaters_.push_back(std::any(updater));
+      }
       config.schedule_.push_back(mconfig);
     }
   }

@@ -149,10 +149,10 @@ namespace TrackToy {
       if(fabs(tp.doca())> lrdoca_){
         ambig = tp.doca() < 0 ? KinKal::WireHitState::left : KinKal::WireHitState::right;
       }
-      double rmax = std::max(lrdoca_,cellRadius());
-      KinKal::WireHitState whstate(ambig, rmax);
+      KinKal::WireHitState whstate(ambig);
+      double mindoca = std::min(lrdoca_,cellRadius());
       // create the hit
-      hits.push_back(std::make_shared<WIREHIT>(bfield, tp, whstate, vdrift_, sigt_*sigt_, cellRadius()));
+      hits.push_back(std::make_shared<WIREHIT>(bfield, tp, whstate, mindoca, vdrift_, sigt_*sigt_, cellRadius()));
     }
     return true;
   }
