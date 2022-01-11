@@ -80,7 +80,7 @@ int main(int argc, char **argv) {
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
   double decayfrac(0.391); // target material specific FIXME!
   double endrange(5.0); // spectrum generation range
-  double tol(1e-5);
+  double tol(1e-4);
   double emass(0.511); //electron
   double cmin(-1.0), cmax(1.0);
   size_t npts(5000);
@@ -364,12 +364,12 @@ int main(int argc, char **argv) {
     }
     //    cout << "Track " << itrk_ << endl;
     // reset tree variables
-    targetde_ = ipade_ = trackerde_ = 1.0;
-    targete_ = ipae_ = -1.0;
+    targetde_ = ipade_ = trackerde_ = 0.0;
+    targete_ = ipae_ = 0.0;
     ntarget_ = nipa_ = -1;
     kkentmom_ = kkmidmom_ = kkextmom_ = VEC3();
     kkentmomerr_ = kkmidmomerr_ = kkextmomerr_ = -1.0;
-    kkentt0_ = kkmidt0_ = kkextt0_ = -1.0;
+    kkentt0_ = kkmidt0_ = kkextt0_ = 0.0;
     mcentmom_ = mcmidmom_ = mcextmom_ = VEC3();
     kkentpos_ = kkmidpos_ = kkextpos_ = VEC3();
     mcentpos_ = mcmidpos_ = mcextpos_ = VEC3();
@@ -386,9 +386,7 @@ int main(int argc, char **argv) {
     double tdecay = tr_.Exp(lifetime);
     // generate random phi and cos(theta)
     double phi = tr_.Uniform(-M_PI,M_PI);
-    //    double cost = tr_.Uniform(0.6,0.9);
     double cost = tr_.Uniform(cmin,cmax);
-    //    double cost = 0.7;
     double sint = sqrt(1.0-cost*cost);
     VEC4 const& pos4 = *mustoppos;
     originpos_ = pos4.Vect();
@@ -406,14 +404,14 @@ int main(int argc, char **argv) {
     PKTRAJ mctraj(lhelix);
     TimeRanges targetinters, ipainters, trackerinters;
     // extend through the target
-    if(target.extendTrajectory(*bfield,mctraj,targetinters)){
+    if(target.extendTrajectory(*bfield,mctraj,targetinters,mctol)){
       //      cout << "Extended to target " << targetinters.size() << endl;
       //      mctraj.print(cout,2);
       targete_ = mctraj.energy(mctraj.range().end());
       targetde_ = targete_ - origine_;
       ntarget_ = targetinters.size();
       // extend through the IPA
-      if(ipa.extendTrajectory(*bfield,mctraj,ipainters)){
+      if(ipa.extendTrajectory(*bfield,mctraj,ipainters,mctol)){
         //        cout << "Extended to ipa " << ipainters.size() << endl;
         //        mctraj.print(cout,2);
         nipa_ = ipainters.size();

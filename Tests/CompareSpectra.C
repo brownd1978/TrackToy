@@ -6,7 +6,7 @@
 #include "TH1D.h"
 #include <string>
 #include <iostream>
-void CompareSpectra(const char* diofile="FlatDIOTracks.root",const char* cefile="CeMinusTracks.root",double momcut=103.7) {
+void CompareSpectra(const char* diofile="FlatDIOTracks.root",double dioscale=1.0,const char* cefile="CeMinusTracks.root",double cescale=1.0, double momcut=103.7) {
   using namespace std;
   TFile* diof = new TFile(diofile);
   TTree* diot = (TTree*)diof->Get("trks");
@@ -23,11 +23,18 @@ void CompareSpectra(const char* diofile="FlatDIOTracks.root",const char* cefile=
   cemom->SetLineColor(kRed);
   double timecut(700.0), momerrcut(0.3), hitfraccut(0.9);
   char cutstring[100];
-  snprintf(cutstring,100,"(kkstatus==0&&fmod(kkmidt0,1695)>%3.1f&&kkmidmomerr<%3.3f&&ntrkhits/ncells>%3.3f)",timecut,momerrcut,hitfraccut);// filter on fit quality, tracktime, etc
-  cout << "Track selection " << cutstring << endl;
-  TCut tsel = TCut("weight")*TCut(cutstring); //weight to get physical rate
-  diot->Project("diomom","kkentmom.R()",tsel);
-  cet->Project("cemom","kkentmom.R()",tsel);
+  snprintf(cutstring,100,"(kkstatus==0&&fmod(kkmidt0,1695)>%3.1f&&kkmidmomerr<%3.3f&&ntrkhits/ncells>%3.3f)*%3.3f",timecut,momerrcut,hitfraccut,dioscale);// filter on fit quality, tracktime, etc
+  cout << "DIO selection " << cutstring << endl;
+  TCut diosel = TCut("weight")*TCut(cutstring); //weight to get physical rate
+  snprintf(cutstring,100,"(kkstatus==0&&fmod(kkmidt0,1695)>%3.1f&&kkmidmomerr<%3.3f&&ntrkhits/ncells>%3.3f)*%3.3f",timecut,momerrcut,hitfraccut,cescale);// filter on fit quality, tracktime, etc
+  cout << "Ce selection " << cutstring << endl;
+  TCut cesel = TCut("weight")*TCut(cutstring); //weight to get physical rate
+
+  diot->Project("diomom","kkentmom.R()",diosel);
+  cet->Project("cemom","kkentmom.R()",cesel);
+  double max = 3*cemom->GetBinContent(cemom->GetMaximumBin());
+  cemom->SetMaximum(max);
+  diomom->SetMaximum(max);
 // cut and count
   double ndio(0.0), nce(0.0);
   for(int ibin=1;ibin<=nbins;ibin++){

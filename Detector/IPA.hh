@@ -17,7 +17,7 @@ namespace TrackToy {
       auto const& material() const { return *mat_; }
       auto type() const { return type_; }
       // extend a trajectory through the IPA.  Return value specifies if the particle continues downsream (true) or stops in the target or exits the field upstream (false)
-      template<class PKTRAJ> bool extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj,TimeRanges& intersections) const;
+      template<class PKTRAJ> bool extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj,TimeRanges& intersections,double tol=1e-4) const;
       void print(std::ostream& os) const;
     private:
       IPAType type_;
@@ -26,16 +26,14 @@ namespace TrackToy {
   };
 
 
-  template<class PKTRAJ> bool IPA::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections) const {
+  template<class PKTRAJ> bool IPA::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections,double tol) const {
     bool retval(false);
     intersections.clear();
-    // compute the time tolerance based on the speed.
-    double ttol = 3.0/pktraj.speed(pktraj.range().begin());
     // record the end of the previous extension; this is where new extensions start
     double tstart = pktraj.back().range().begin();
     double energy = pktraj.energy(tstart);
     // extend through the IPA or exiting the BField (backwards)
-    retval = extendZ(pktraj,bfield, cyl_.zmax(), ttol);
+    retval = extendZ(pktraj,bfield, cyl_.zmax(), tol);
 //   std::cout << "IPA extend " << retval << std::endl;
     if(retval){
 //      auto pstart = pktraj.position3(tstart);

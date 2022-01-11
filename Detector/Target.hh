@@ -26,7 +26,7 @@ namespace TrackToy {
       double protonEnergyLoss(double ke, double pathlen) const; // not yet implemented TODO
       std::string material() const;
       // extend a trajectory through the target.  Return value specifies if the particle continues downsream (true) or stops in the target or exits the field upstream (false)
-      template<class PKTRAJ> bool extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj,TimeRanges& intersections) const;
+      template<class PKTRAJ> bool extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj,TimeRanges& intersections,double tol=1e-4) const;
       void print(std::ostream& os) const;
     private:
       Material mat_;
@@ -35,13 +35,11 @@ namespace TrackToy {
       double density_;
   };
 
-  template<class PKTRAJ> bool Target::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections) const {
+  template<class PKTRAJ> bool Target::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections,double tol) const {
     bool retval(false);
     intersections.clear();
-    // compute the time tolerance based on the speed and a rough distance approximation
-    double ttol = 3.0/pktraj.speed(pktraj.range().begin());
     // extend to the  of the target or exiting the BField (backwards)
-    retval = extendZ(pktraj,bfield, cyl_.zmax(), ttol);
+    retval = extendZ(pktraj,bfield, cyl_.zmax(), tol);
     //    cout << "Z target extend " << ztgt << endl;
     if(retval){ // make sure we didn't exit the BField upstream
       // first find the intersections.
