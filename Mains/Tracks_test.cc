@@ -55,7 +55,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --mustopeff f --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --fitschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --printdetail i --saveall i --cmin f --cmax f --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --printdetail i --saveall i --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -67,14 +67,14 @@ int main(int argc, char **argv) {
   using KKBF = BFieldEffect<KTRAJ>;
   using Clock = std::chrono::high_resolution_clock;
   int ntrks(-1);
-  string bfile("Data/DSMapDump.dat"), mfile("MuStops.root"), targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
+  string bfile("Data/DSMapDump.dat"), mstops("MDC2020n_10pc"), targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
   string calofile("Data/Mu2eCalo.dat");
   string ipafile("Data/Mu2e_IPA.dat");
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
-  string sfile("Data/Schedule.txt"); // fit schedule
+  string sfile("Data/Schedule.txt"), extfile; // fit schedule
   string process("CeMinus");
   string diofile("Data/DIOAl_fine.dat"); // this should be a parameter FIXME
-  double mustopeff(0.00145539); // mu stops/POT.  This comes from running MuBeam, which also produces the Mustops.root file.  These MUST be consistent to get physically correct results!!
+  double mustopeff; // mu stops/POT.  This comes from running MuBeam, which also produces the Mustops.root file.  These MUST be consistent to get physically correct results!!
   double npot(3.6e20); // total number of POTs
   double rmue(1e-16); // set as needed
   double endpoint(105.0), lifetime(864.0); // these should be specified by target material FIXME
@@ -82,12 +82,12 @@ int main(int argc, char **argv) {
   double endrange(5.0); // spectrum generation range
   double tol(1e-4);
   double emass(0.511); //electron
-  double cmin(-1.0), cmax(1.0);
   size_t npts(5000);
   bool draw(false), ttree(true), saveall(false);
   string tfile("");
   int trkfieldtype(0);
   int minnhits(15); // minimum # of hits
+  bool bfit(true), bext(true); // BField correction config
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
   TTree* trktree_(0);
@@ -114,13 +114,13 @@ int main(int argc, char **argv) {
 
   static struct option long_options[] = {
     {"mustopsfile",     required_argument, 0, 'm' },
-    {"mustopeff",     required_argument, 0, 'M' },
     {"bfield",     required_argument, 0, 'F' },
     {"trkfield",     required_argument, 0, 'k' },
     {"targetfile",     required_argument, 0, 't' },
     {"trackerfile",     required_argument, 0, 'T' },
     {"ipafile",     required_argument, 0, 'i' },
     {"fitschedule",     required_argument, 0, 'X' },
+    {"extschedule",     required_argument, 0, 'z' },
     {"process",     required_argument, 0, 's'  },
     {"endpoint",     required_argument, 0, 'e' },
     {"endrange",     required_argument, 0, 'E' },
@@ -134,8 +134,8 @@ int main(int argc, char **argv) {
     {"minnhits",     required_argument, 0, 'N' },
     {"printdetail",     required_argument, 0, 'p' },
     {"faildetail",     required_argument, 0, 'f' },
-    {"cmin",     required_argument, 0, 'c' },
-    {"cmax",     required_argument, 0, 'C' },
+    {"bfit",     required_argument, 0, 'b' },
+    {"bext",     required_argument, 0, 'B' },
     {NULL, 0,0,0}
   };
   int opt;
@@ -147,9 +147,7 @@ int main(int argc, char **argv) {
                  break;
       case 'k' : trkfieldtype = atoi(optarg);
                  break;
-      case 'm' : mfile = string(optarg);
-                 break;
-      case 'M' : mustopeff = atof(optarg);
+      case 'm' : mstops = string(optarg);
                  break;
       case 't' : targetfile = string(optarg);
                  break;
@@ -158,6 +156,8 @@ int main(int argc, char **argv) {
       case 'i' : ipafile = string(optarg);
                  break;
       case 'X' : sfile = string(optarg);
+                 break;
+      case 'z' : extfile = string(optarg);
                  break;
       case 's' : process = string(optarg);
                  break;
@@ -185,15 +185,16 @@ int main(int argc, char **argv) {
                  break;
       case 'f' : faildetail = (Config::printLevel)atoi(optarg);
                  break;
-      case 'c' : cmin = atof(optarg);
+      case 'b' : bfit = atoi(optarg)!=0;
                  break;
-      case 'C' : cmax = atof(optarg);
+      case 'B' : bext = atoi(optarg)!=0;
                  break;
       default: print_usage();
                exit(EXIT_FAILURE);
     }
   }
   // open the input muonstops file
+  string mfile =mstops + string("MuStops.root");
   TFile* mustopsfile = TFile::Open(mfile.c_str(),"READ");
   if(!mustopsfile){
     cout << "MuStop file " << mfile << " not found: did you forget to run MuStops_test?   terminating" << endl;
@@ -203,8 +204,16 @@ int main(int argc, char **argv) {
   TTreeReader reader("MuStops",mustopsfile);
   TTreeReaderValue<VEC4> mustoppos(reader, "Pos");
   TTree* mtree = (TTree*)mustopsfile->Get("MuStops");
-  cout << "MuStops TTree from file " << mfile << " has " << mtree->GetEntries() << " Entries" << endl;
   if(ntrks<0)ntrks = mtree->GetEntries();
+// get stop efficiency (per pot)
+  mfile = mstops + string("_MuonStopEff.txt");
+  ifstream mstopeffstream(mfile,std::ios_base::in);
+  if(mstopeffstream.fail()){
+    std::string errmsg = std::string("File doesn't exist " )+ mfile;
+    throw std::invalid_argument(errmsg.c_str());
+  }
+  mstopeffstream >> mustopeff;
+  cout << "MuStops TTree from file " << mfile << " has " << mtree->GetEntries() << " Entries, Stops/POT " << mustopeff << endl;
   // build the materials database
   MatEnv::SimpleFileFinder ttfinder(std::string("TRACKTOY_SOURCE_DIR"),std::string("/Data/"));
   cout << "Using Materials file " << ttfinder.matMtrDictionaryFileName() << endl;
@@ -224,7 +233,6 @@ int main(int argc, char **argv) {
   Calorimeter calo(calofile);
   calo.print(cout);
   // setup BField
-  bool bfcorr(true);
   FileFinder filefinder;
   std::string fullfile = filefinder.fullFile(bfile);
   cout << "Building BField from file " << fullfile << endl;
@@ -247,7 +255,7 @@ int main(int argc, char **argv) {
   Config config;
   config.dwt_ = dwt;
   config.maxniter_ = maxniter;
-  config.bfcorr_ = bfcorr;
+  config.bfcorr_ = bfit;
   config.tol_ = tol;
   config.plevel_ = detail;
   config.pdchi2_ = 1e4;
@@ -266,25 +274,59 @@ int main(int argc, char **argv) {
       istringstream ss(line);
       ss >> temp >> convdchisq >> divdchisq;
       MetaIterConfig mconfig(temp, convdchisq, divdchisq, nmiter++);
-      double mindoca(-1.0),maxdoca(-1.0);
-      ss >> mindoca >> maxdoca;
+      double mindoca(-1.0),maxdoca(-1.0), minprob(-1.0);
+      ss >> mindoca >> maxdoca >> minprob;
       if(mindoca >0.0 || maxdoca > 0.0){
 // setup and insert the updater
-        SimpleWireHitUpdater updater(mindoca,maxdoca);
+        SimpleWireHitUpdater updater(mindoca,maxdoca,minprob);
         mconfig.updaters_.push_back(std::any(updater));
       }
       config.schedule_.push_back(mconfig);
     }
   }
   cout << config << endl;
+  // setup extension (if provided).  Parameters should be independent of fit config TODO
+  Config extconfig;
+  extconfig.dwt_ = dwt;
+  extconfig.maxniter_ = maxniter;
+  extconfig.bfcorr_ = bext;
+  extconfig.tol_ = tol;
+  extconfig.plevel_ = detail;
+  extconfig.pdchi2_ = 1e4;
+  if(extfile.size() > 0){
+    fullfile = filefinder.fullFile(extfile);
+    std::ifstream ifs (fullfile, std::ifstream::in);
+    if ( (ifs.rdstate() & std::ifstream::failbit ) != 0 ){
+      std::cerr << "Error opening " << fullfile << std::endl;
+      return -1;
+    }
+    string line;
+    unsigned nmiter(0);
+    double temp, convdchisq, divdchisq;
+    while (getline(ifs,line)){
+      if(strncmp(line.c_str(),"#",1)!=0){
+        istringstream ss(line);
+        ss >> temp >> convdchisq >> divdchisq;
+        MetaIterConfig mconfig(temp, convdchisq, divdchisq, nmiter++);
+        double mindoca(-1.0),maxdoca(-1.0),minprob(-1.0);
+        ss >> mindoca >> maxdoca >> minprob;
+        if(mindoca >0.0 || maxdoca > 0.0){
+          // setup and insert the updater
+          SimpleWireHitUpdater updater(mindoca,maxdoca,minprob);
+          mconfig.updaters_.push_back(std::any(updater));
+        }
+        extconfig.schedule_.push_back(mconfig);
+      }
+    }
+  }
   // randoms
   TRandom3 tr_; // random number generator
   // setup spectrum
   Spectrum* spectrum(0);
   bool flat(false);
   double wfac = npot*mustopeff/(double)ntrks;
-    if(process == "CeMinus"){
-    // endpoint energy should come from target material FIXME
+  if(process == "CeMinus"){
+    // endpoint energy should come from target material TODO
     CeMinusSpectrumParams ceparams(endpoint);
     spectrum = new CeMinusSpectrum(ceparams);
     weight_ = (1.0-decayfrac)*rmue*wfac;
@@ -386,7 +428,7 @@ int main(int argc, char **argv) {
     double tdecay = tr_.Exp(lifetime);
     // generate random phi and cos(theta)
     double phi = tr_.Uniform(-M_PI,M_PI);
-    double cost = tr_.Uniform(cmin,cmax);
+    double cost = tr_.Uniform(-1.0,1.0);
     double sint = sqrt(1.0-cost*cost);
     VEC4 const& pos4 = *mustoppos;
     originpos_ = pos4.Vect();
@@ -475,6 +517,11 @@ int main(int argc, char **argv) {
             seedtraj.params().parameters()[ipar] += tr_.Gaus(0.0,perr);
           }
           KKTRK kktrk(config,*trkfield,seedtraj,hits,xings);
+          if(extconfig.schedule().size()>0){
+            std::vector<std::shared_ptr<Hit<KTRAJ>>> exthits;
+            std::vector<std::shared_ptr<ElementXing<KTRAJ>>> extxings;
+            kktrk.extend(extconfig,exthits,extxings);
+          }
           nfit++;
           // fill fit information
           auto const& fstat = kktrk.fitStatus();

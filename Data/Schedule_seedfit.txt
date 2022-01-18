@@ -1,0 +1,7 @@
+#
+#  Test Configuration iteration schedule for seed fit
+#  Order:
+#  temperature dchisquared_converge dchisquared_diverge (mindoca maxdoca minprob)
+2.0  10.0 100.0 20 20 1e-6
+1.0  1.0  50.0  10 10 1e-6
+0.5  1.0  50.0  5 5 1e-5

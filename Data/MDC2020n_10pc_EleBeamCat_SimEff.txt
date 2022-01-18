@@ -1,0 +1,2 @@
+TABLE SimEfficiencies IOV
+sim.mu2e.EleBeamCat.MDC2020n_10pc.art,	3287591,	20000000,	0.16437955

@@ -1,0 +1,2 @@
+TABLE SimEfficiencies IOV
+sim.mu2e.EleBeamCat.Mu2eIIa2.art,	517174,	199960000,	0.00258638727745549

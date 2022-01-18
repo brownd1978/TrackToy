@@ -18,15 +18,15 @@ namespace TrackToy {
     std::string fullfile = filefinder.fullFile(trkfile);
     std::string line;
     static std::string comment("#");
-    std::ifstream tgt_stream(fullfile,std::ios_base::in);
-    if(tgt_stream.fail()){
+    std::ifstream tracker_stream(fullfile,std::ios_base::in);
+    if(tracker_stream.fail()){
       std::string errmsg = std::string("File doesn't exist" )+ fullfile;
       throw std::invalid_argument(errmsg.c_str());
     }
     double rmin(-1.0), rmax(-1.0), zpos(-1.0), zhalf(-1.0);
     double rcell(-1.0), lcell(-1.0), rwire(-1.0), wthick(-1.0);
     unsigned orient(0);
-    while (std::getline(tgt_stream, line)) {
+    while (std::getline(tracker_stream, line)) {
       // skip comments and blank lines
       if (line.compare(0,1,comment) != 0 && line.size() > 0 ) {
         // strip leading whitespace
