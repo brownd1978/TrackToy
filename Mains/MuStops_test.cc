@@ -23,6 +23,7 @@
 #include <stdio.h>
 #include <getopt.h>
 #include <iostream>
+#include <fstream>
 #include <vector>
 #include <string>
 
@@ -39,7 +40,7 @@ int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
   int nbeam(-1);
-  string mbfile("Data/Mu2e_MuBeam.root"), bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile("Data/Mu2eTarget.dat");
+  string muonbeam("MDC2020n_10pc"), bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile("Data/Mu2eTarget.dat");
   double beameff(0.0043407), tstep(0.01), tol(1e-3);
   double minmass(100.0); // select muons
 
@@ -59,7 +60,7 @@ int main(int argc, char **argv) {
   while ((opt = getopt_long_only(argc, argv,"",
           long_options, &long_index )) != -1) {
     switch (opt) {
-      case 'f' : mbfile = string(optarg);
+      case 'f' : muonbeam = string(optarg);
                  break;
       case 'F' : bfile = string(optarg);
                  break;
@@ -79,15 +80,29 @@ int main(int argc, char **argv) {
                exit(EXIT_FAILURE);
     }
   }
-  if(mbfile.size()==0){
+  if(muonbeam.size()==0){
     cout << "No input muon beam file specified: terminating" << endl;
     return 1;
   }
   // open the input muonbeam file of muon particles artificially stopped at the entrance to the DS; this comes from the running the Mu2e software StepPointMCDumper_module on the MuBeam(Cat) dataset produced by the beam production
   FileFinder filefinder;
-  std::string fullfile = filefinder.fullFile(mbfile);
+  string mbfile = string("Data/") + muonbeam + string("_MuBeamCat.root");
+  string fullfile = filefinder.fullFile(mbfile);
   TFile* mubeamfile = TFile::Open(fullfile.c_str(),"READ");
   cout << " mbfile " << fullfile << endl;
+  string simefffile = string("Data/") + muonbeam + string("_MuBeamCat_SimEff.txt");
+  fullfile = filefinder.fullFile(simefffile);
+  std::ifstream tgt_stream(fullfile,std::ios_base::in);
+  if(tgt_stream.fail()){
+    std::string errmsg = std::string("File doesn't exist" )+ fullfile;
+    throw std::invalid_argument(errmsg.c_str());
+  }
+  string line,name;
+  unsigned nb, npot;
+  getline(tgt_stream, line); // skip first line
+  getline(tgt_stream, line); // skip first line
+  istringstream iss(line);
+  iss >> name >> nb >> npot >> beameff;
   cout << "Beam muon/POT = " << beameff << endl;
   // find the TTree in the mbfile
   TDirectory* td = (TDirectory*)mubeamfile->Get("StepPointMCDumper");
@@ -111,7 +126,8 @@ int main(int argc, char **argv) {
   cout << " muon range file " << rfile << " has density " << muonrange.density() << " and ranges " << muonrange.rangeData().size() << endl;
   int ibeam(0);
   // create a TTree for the output
-  TFile mustopfile("MuStops.root","RECREATE");
+  string mustopname = muonbeam + string("MuStops.root");
+  TFile mustopfile(mustopname.c_str(),"RECREATE");
   KinKal::VEC4 stoppos;
   TTree* mustops = new TTree("MuStops","MuStops",1);
   mustops->Branch("Pos",&stoppos);
@@ -205,6 +221,10 @@ int main(int argc, char **argv) {
   // calculate the muon stopping efficiency
   double mueff = beameff*nstopped/nmu;
   cout << "found "<< nstopped << " stopped muons out of " << nmu << ", stopping ratio = " << (float)nstopped/nmu << " stops/POT " << mueff << endl;
+  // save Muon efficiencies
+  string effname = muonbeam + string("_MuonStopEff.txt");
+  ofstream eff_stream(effname.c_str(),std::ios_base::out);
+  eff_stream << mueff << endl;
   // now draw
   TCanvas* muscan = new TCanvas("MuonStops");
   muscan->Divide(2,2);

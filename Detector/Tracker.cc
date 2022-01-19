@@ -12,21 +12,21 @@
 namespace TrackToy {
   Tracker::Tracker(MatEnv::MatDBInfo const& matdbinfo,std::string const& trkfile):
     ncells_(0), cellDensity_(-1.0), density_(-1.0), smat_(0),
-    vdrift_(-1.0), vprop_(-1.0), sigt_(-1.0), sigl_(-1.0), lrdoca_(-1.0), hiteff_(-1.0)
+    vdrift_(-1.0), vprop_(-1.0), sigt_(-1.0), sigl_(-1.0), lrdoca_(-1.0), hiteff_(-1.0), hiscat_(10.0)
   {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(trkfile);
     std::string line;
     static std::string comment("#");
-    std::ifstream tgt_stream(fullfile,std::ios_base::in);
-    if(tgt_stream.fail()){
+    std::ifstream tracker_stream(fullfile,std::ios_base::in);
+    if(tracker_stream.fail()){
       std::string errmsg = std::string("File doesn't exist" )+ fullfile;
       throw std::invalid_argument(errmsg.c_str());
     }
     double rmin(-1.0), rmax(-1.0), zpos(-1.0), zhalf(-1.0);
     double rcell(-1.0), lcell(-1.0), rwire(-1.0), wthick(-1.0);
     unsigned orient(0);
-    while (std::getline(tgt_stream, line)) {
+    while (std::getline(tracker_stream, line)) {
       // skip comments and blank lines
       if (line.compare(0,1,comment) != 0 && line.size() > 0 ) {
         // strip leading whitespace
@@ -42,6 +42,9 @@ namespace TrackToy {
           std::cout << "ncells " << ncells_  << " rcell " << rcell << " lcell " << lcell << " wthick " << wthick << " rwire " << rwire << std::endl;
           if(rcell<0.0)throw std::invalid_argument("Invalid cell parameters");
           smat_ = new KinKal::StrawMaterial(matdbinfo, rcell, wthick, rwire);
+          // calculate the scatter fraction; these are used to keep the RMS unchanged
+          corefrac_ = smat_->wallMaterial().scatterFraction();
+          lowscat_ = sqrt( (1.0 +hiscat_*hiscat_*(corefrac_-1.0))/corefrac_);
           orientation_ = (CellOrientation)orient;
           // cell density (transverse to the cell)
           cellDensity_ = ncells_*2.0*rcell*lcell/cyl_.volume();
@@ -62,6 +65,7 @@ namespace TrackToy {
   void Tracker::print(std::ostream& os ) const {
     std::cout << "Tracker Z between " << zMin() << " and " << zMax() << " Rho between " << rMin() << " and " << rMax()
       << " average material density (gm/mm^3)" << density_ << std::endl;
+    std::cout << "scatter core fraction " << corefrac_ << " low factor " << lowscat_ << " high factor " << hiscat_ << std::endl;
     std::cout << "Cell density (cells/mm) " << cellDensity_ << " with " << ncells_ << " cells oriented ";
     if(orientation_ == azimuthal)
       std::cout << " azimuthally " << std::endl;
