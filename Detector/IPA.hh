@@ -5,9 +5,11 @@
 #define TrackToy_Detector_IPA_hh
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/MatEnv/DetMaterial.hh"
+#include "KinKal/MatEnv/MoyalDist.hh"
 #include "KinKal/General/TimeRange.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/CylindricalShell.hh"
+#include "TRandom3.h"
 namespace TrackToy {
   class IPA {
     public:
@@ -23,10 +25,12 @@ namespace TrackToy {
       IPAType type_;
       CylindricalShell cyl_;
       const MatEnv::DetMaterial* mat_;
+      mutable TRandom3 tr_; // random number generator
   };
 
 
   template<class PKTRAJ> bool IPA::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections,double tol) const {
+    using KinKal::MoyalDist;
     bool retval(false);
     intersections.clear();
     // record the end of the previous extension; this is where new extensions start
@@ -45,7 +49,12 @@ namespace TrackToy {
         for (auto const& ipainter : intersections) {
           double mom = pktraj.momentum(ipainter.mid());
           double plen = pktraj.speed(ipainter.mid())*ipainter.range();
-          double de = mat_->energyLossMPV(mom,plen,pktraj.mass()); // should sample TODO
+//          double de = mat_->energyLossMPV(mom,plen,pktraj.mass()); // should sample TODO
+          MoyalDist edist(MoyalDist::MeanRMS(
+              mat_->energyLoss(mom,plen,pktraj.mass()),
+              mat_->energyLossRMS(mom,plen,pktraj.mass())),10);
+          double de = edist.sample(tr_.Uniform(0.0,1.0));
+//          std::cout << "IPA de " << de << std::endl;
           energy += de;
         }
         retval = updateEnergy(pktraj,intersections.back().end(),energy);

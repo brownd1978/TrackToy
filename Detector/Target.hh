@@ -7,8 +7,10 @@
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/EStar.hh"
+#include "KinKal/MatEnv/MoyalDist.hh"
 #include "KinKal/General/BFieldMap.hh"
 #include "KinKal/General/TimeRange.hh"
+#include "TRandom3.h"
 #include <string>
 #include <vector>
 #include <iostream>
@@ -33,9 +35,11 @@ namespace TrackToy {
       EStar estar_; // energystar table
       HollowCylinder cyl_;
       double density_;
+      mutable TRandom3 tr_; // random number generator
   };
 
   template<class PKTRAJ> bool Target::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections,double tol) const {
+    using KinKal::MoyalDist;
     bool retval(false);
     intersections.clear();
     // extend to the  of the target or exiting the BField (backwards)
@@ -52,7 +56,10 @@ namespace TrackToy {
         for (auto const& range : intersections) {
           double pathlen = range.range()*speed;
           // should check for particle type FIXME!
-          double de = electronEnergyLoss(energy-pktraj.mass(),pathlen);
+          double demean = electronEnergyLoss(energy-pktraj.mass(),pathlen);
+          MoyalDist edist(MoyalDist::MeanRMS(demean,demean),10);
+          double de = std::max(0.0,edist.sample(tr_.Uniform(0.0,1.0)));
+//          std::cout << "Targe demean " << demean << " de " << de << std::endl;
           energy -= de;
         }
         retval = updateEnergy(pktraj,intersections.back().end(),energy);

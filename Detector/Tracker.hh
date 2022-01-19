@@ -6,6 +6,7 @@
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "KinKal/MatEnv/MatDBInfo.hh"
+#include "KinKal/MatEnv/MoyalDist.hh"
 #include "KinKal/General/Vectors.hh"
 #include "KinKal/Trajectory/Line.hh"
 #include "KinKal/Detector/StrawXing.hh"
@@ -70,6 +71,7 @@ namespace TrackToy {
       double sigl_; // longitudinal measurement time resolution sigma
       double lrdoca_; // minimum doca to resolve LR ambiguity
       double hiteff_; // hit efficiency
+      double lowscat_, hiscat_, corefrac_; // factors for non-Gaussian scattering
       mutable TRandom3 tr_; // random number generator
   };
 
@@ -208,6 +210,7 @@ namespace TrackToy {
 
   template <class KTRAJ> void Tracker::updateTraj(KinKal::BFieldMap const& bfield,
       KinKal::ParticleTrajectory<KTRAJ>& mctraj, const KinKal::ElementXing<KTRAJ>* sxing) const {
+    using KinKal::MoyalDist;
     // simulate energy loss and multiple scattering from this xing
     auto txing = sxing->crossingTime();
     auto const& endpiece = mctraj.nearestPiece(txing);
@@ -216,6 +219,7 @@ namespace TrackToy {
     auto endpos = endpiece.position4(txing);
     std::array<double,3> dmom {0.0,0.0,0.0}, momvar {0.0,0.0,0.0};
     sxing->materialEffects(mctraj,KinKal::TimeDir::forwards, dmom, momvar);
+    MoyalDist edist(MoyalDist::MeanRMS(dmom[KinKal::MomBasis::momdir_],sqrt(momvar[KinKal::MomBasis::momdir_])),10);
 
     for(int idir=0;idir<=KinKal::MomBasis::phidir_; idir++) {
       auto mdir = static_cast<KinKal::MomBasis::Direction>(idir);
@@ -224,11 +228,13 @@ namespace TrackToy {
       // generate a random effect given this variance and mean.  Note momEffect is scaled to momentum
       switch( mdir ) {
         case KinKal::MomBasis::perpdir_: case KinKal::MomBasis::phidir_ :
-          dm = tr_.Gaus(dmom[idir],momsig);
+          // non-Gaussian scattering tails
+          dm = tr_.Uniform(0.0,1.0) < corefrac_ ?  tr_.Gaus(dmom[idir],lowscat_*momsig) : tr_.Gaus(dmom[idir],hiscat_*momsig);
           break;
         case KinKal::MomBasis::momdir_ :
     // calculate a smeared energy loss using a Moyal distribution
-          dm = std::min(0.0,tr_.Gaus(dmom[idir],momsig));
+//          dm = std::min(0.0,tr_.Gaus(dmom[idir],momsig));
+          dm = edist.sample(tr_.Uniform(0.0,1.0));
           break;
         default:
           throw std::invalid_argument("Invalid direction");
