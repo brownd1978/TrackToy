@@ -86,7 +86,7 @@ int main(int argc, char **argv) {
   bool draw(false), ttree(true), saveall(false);
   string tfile("");
   int trkfieldtype(0);
-  int minnhits(15); // minimum # of hits
+  unsigned minnhits(15); // minimum # of hits
   bool bfit(true), bext(true); // BField correction config
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
