@@ -66,7 +66,7 @@ int main(int argc, char **argv) {
   using KKMAT = Material<KTRAJ>;
   using KKBF = BFieldEffect<KTRAJ>;
   using Clock = std::chrono::high_resolution_clock;
-  int ntrks(-1);
+  int ntrks(1000);
   string bfile("Data/DSMapDump.dat"), mstops("MDC2020n_10pc"), targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
   string calofile("Data/Mu2eCalo.dat");
   string ipafile("Data/Mu2e_IPA.dat");
