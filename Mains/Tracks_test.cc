@@ -55,7 +55,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --printdetail i --saveall i --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --npot i --printdetail i --saveall i --faildetail i\n");
 }
 
 int main(int argc, char **argv) {
@@ -136,6 +136,8 @@ int main(int argc, char **argv) {
     {"faildetail",     required_argument, 0, 'f' },
     {"bfit",     required_argument, 0, 'b' },
     {"bext",     required_argument, 0, 'B' },
+    {"npot",     required_argument, 0, 'P' },
+    {"rmue",     required_argument, 0, 'M' },
     {NULL, 0,0,0}
   };
   int opt;
@@ -188,6 +190,10 @@ int main(int argc, char **argv) {
       case 'b' : bfit = atoi(optarg)!=0;
                  break;
       case 'B' : bext = atoi(optarg)!=0;
+                 break;
+      case 'P' : npot = atof(optarg);
+                 break;
+      case 'M' : rmue = atof(optarg);
                  break;
       default: print_usage();
                exit(EXIT_FAILURE);

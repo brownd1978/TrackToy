@@ -40,8 +40,8 @@ int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
   int nbeam(-1);
-  string muonbeam("MDC2020n_10pc"), bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile("Data/Mu2eTarget.dat");
-  double beameff(0.0043407), tstep(0.01), tol(1e-3);
+  string muonbeam, bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile;
+  double beameff(0.0), tstep(0.01), tol(1e-3);
   double minmass(100.0); // select muons
 
   static struct option long_options[] = {
@@ -92,18 +92,19 @@ int main(int argc, char **argv) {
   cout << " mbfile " << fullfile << endl;
   string simefffile = string("Data/") + muonbeam + string("_MuBeamCat_SimEff.txt");
   fullfile = filefinder.fullFile(simefffile);
+  cout << "SimEff file " << fullfile << endl;
   std::ifstream tgt_stream(fullfile,std::ios_base::in);
   if(tgt_stream.fail()){
     std::string errmsg = std::string("File doesn't exist" )+ fullfile;
     throw std::invalid_argument(errmsg.c_str());
   }
   string line,name;
-  unsigned nb, npot;
+  long long nb, npot;
   getline(tgt_stream, line); // skip first line
   getline(tgt_stream, line); // skip first line
   istringstream iss(line);
   iss >> name >> nb >> npot >> beameff;
-  cout << "Beam muon/POT = " << beameff << endl;
+  cout << "Beam muon/POT = " << beameff << " for dataset " << name << endl;
   // find the TTree in the mbfile
   TDirectory* td = (TDirectory*)mubeamfile->Get("StepPointMCDumper");
   TTreeReader reader("nt",td);
