@@ -1,2 +1,0 @@
-TABLE SimEfficiencies IOV
-sim.mu2e.MuBeamCat.Mu2eIIa2.art,	52182,	199960000,	0.000260962192438488
