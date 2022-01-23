@@ -58,6 +58,51 @@ void print_usage() {
   printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --npot i --printdetail i --saveall i --faildetail i\n");
 }
 
+int makeConfig(string const& cfile, KinKal::Config& config) {
+  string fullfile;
+  if(strncmp(cfile.c_str(),"/",1) == 0) {
+    fullfile = string(cfile);
+  } else {
+    if(const char* source = std::getenv("TRACKTOY_SOURCE_DIR")){
+      fullfile = string(source) + ("/Data/") + string(cfile);
+    } else {
+      cout << "TRACKTOY_SOURCE_DIR not defined" << endl;
+      return -1;
+    }
+  }
+  std::ifstream ifs (fullfile, std::ifstream::in);
+  if ( (ifs.rdstate() & std::ifstream::failbit ) != 0 ){
+    std::cerr << "Error opening " << fullfile << std::endl;
+    return -1;
+  }
+  string line;
+  int plevel(-1);
+  unsigned nmiter(0);
+  while (getline(ifs,line)){
+    if(strncmp(line.c_str(),"#",1)!=0){
+      istringstream ss(line);
+      if(plevel < 0) {
+        ss >> config.maxniter_ >> config.dwt_ >> config.convdchisq_ >> config.divdchisq_ >>
+        config.pdchi2_ >> config.tbuff_ >> config.tol_ >> config.minndof_ >> config.bfcorr_ >>
+        plevel;
+        config.plevel_ = Config::printLevel(plevel);
+      } else {
+        double temp, mindoca(-1.0),maxdoca(-1.0), minprob(-1.0);
+        ss >> temp >> mindoca >> maxdoca >> minprob;
+        MetaIterConfig mconfig(temp, nmiter++);
+        if(mindoca >0.0 || maxdoca > 0.0){
+          // setup and insert the updater
+          cout << "SimpleWireHitUpdater for iteration " << nmiter << " with mindoca " << mindoca << " maxdoca " << maxdoca << " minprob " << minprob << endl;
+          SimpleWireHitUpdater updater(mindoca,maxdoca,minprob);
+          mconfig.updaters_.push_back(std::any(updater));
+        }
+        config.schedule_.push_back(mconfig);
+      }
+    }
+  }
+  return 0;
+}
+
 int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
@@ -71,7 +116,7 @@ int main(int argc, char **argv) {
   string calofile("Data/Mu2eCalo.dat");
   string ipafile("Data/Mu2e_IPA.dat");
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
-  string sfile("Data/Schedule.txt"), extfile; // fit schedule
+  string sfile("Schedule.txt"), extfile; // fit schedule
   string process("CeMinus");
   string diofile("Data/DIOAl_fine.dat"); // this should be a parameter FIXME
   double mustopeff; // mu stops/POT.  This comes from running MuBeam, which also produces the Mustops.root file.  These MUST be consistent to get physically correct results!!
@@ -108,8 +153,6 @@ int main(int argc, char **argv) {
   // fit parameters
   KinKal::DVEC sigmas(0.5, 0.5, 0.5, 0.5, 0.002, 0.5); // expected parameter sigmas for loop helix
   double seedsmear(1.0);
-  double dwt(1.0e6);
-  unsigned maxniter(10);
   Config::printLevel detail(Config::none), faildetail(Config::none);
 
   static struct option long_options[] = {
@@ -259,72 +302,10 @@ int main(int argc, char **argv) {
 //  auto trkfield = bfield;
   // setup fit configuration
   Config config;
-  config.dwt_ = dwt;
-  config.maxniter_ = maxniter;
-  config.bfcorr_ = bfit;
-  config.tol_ = tol;
-  config.plevel_ = detail;
-  config.pdchi2_ = 1e4;
-  // read the schedule from the file
-  fullfile = filefinder.fullFile(sfile);
-  std::ifstream ifs (fullfile, std::ifstream::in);
-  if ( (ifs.rdstate() & std::ifstream::failbit ) != 0 ){
-    std::cerr << "Error opening " << fullfile << std::endl;
-    return -1;
-  }
-  string line;
-  unsigned nmiter(0);
-  double temp, convdchisq, divdchisq;
-  while (getline(ifs,line)){
-    if(strncmp(line.c_str(),"#",1)!=0){
-      istringstream ss(line);
-      ss >> temp >> convdchisq >> divdchisq;
-      MetaIterConfig mconfig(temp, convdchisq, divdchisq, nmiter++);
-      double mindoca(-1.0),maxdoca(-1.0), minprob(-1.0);
-      ss >> mindoca >> maxdoca >> minprob;
-      if(mindoca >0.0 || maxdoca > 0.0){
-// setup and insert the updater
-        SimpleWireHitUpdater updater(mindoca,maxdoca,minprob);
-        mconfig.updaters_.push_back(std::any(updater));
-      }
-      config.schedule_.push_back(mconfig);
-    }
-  }
-  cout << config << endl;
-  // setup extension (if provided).  Parameters should be independent of fit config TODO
+  makeConfig(sfile,config);
+  // setup extension (if provided).
   Config extconfig;
-  extconfig.dwt_ = dwt;
-  extconfig.maxniter_ = maxniter;
-  extconfig.bfcorr_ = bext;
-  extconfig.tol_ = tol;
-  extconfig.plevel_ = detail;
-  extconfig.pdchi2_ = 1e4;
-  if(extfile.size() > 0){
-    fullfile = filefinder.fullFile(extfile);
-    std::ifstream ifs (fullfile, std::ifstream::in);
-    if ( (ifs.rdstate() & std::ifstream::failbit ) != 0 ){
-      std::cerr << "Error opening " << fullfile << std::endl;
-      return -1;
-    }
-    string line;
-    unsigned nmiter(0);
-    double temp, convdchisq, divdchisq;
-    while (getline(ifs,line)){
-      if(strncmp(line.c_str(),"#",1)!=0){
-        istringstream ss(line);
-        ss >> temp >> convdchisq >> divdchisq;
-        MetaIterConfig mconfig(temp, convdchisq, divdchisq, nmiter++);
-        double mindoca(-1.0),maxdoca(-1.0),minprob(-1.0);
-        ss >> mindoca >> maxdoca >> minprob;
-        if(mindoca >0.0 || maxdoca > 0.0){
-          // setup and insert the updater
-          SimpleWireHitUpdater updater(mindoca,maxdoca,minprob);
-          mconfig.updaters_.push_back(std::any(updater));
-        }
-        extconfig.schedule_.push_back(mconfig);
-      }
-    }
-  }
+  if(extfile.size() > 0)makeConfig(extfile,extconfig);
   // randoms
   TRandom3 tr_; // random number generator
   // setup spectrum
