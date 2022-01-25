@@ -510,6 +510,15 @@ int main(int argc, char **argv) {
             kktrk.extend(extconfig,exthits,extxings);
           }
           nfit++;
+          // fill hit counting
+          for(auto const& hit : hits) {
+            if(hit->active()){
+              ++tinfo_.kknactive;
+              auto swh = dynamic_cast<KinKal::SimpleWireHit<KTRAJ>*>(hit.get());
+              if(swh != 0 && !swh->hitState().useDrift())++tinfo_.kknnull;
+            }
+          }
+
           // fill fit information
           auto const& fstat = kktrk.fitStatus();
           if(fstat.status_ == Status::failed)nfail++;
