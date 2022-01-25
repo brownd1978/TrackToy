@@ -20,7 +20,7 @@ void MomResComp(TTree* trks) {
   TH1F* gactive = new TH1F("gactive","Active hit fraction",100,0.0,1.0);
   TH1F* gnull = new TH1F("gnull","Null hit fraction",100,0.0,1.0);
   TH1F* gcell = new TH1F("gcell","hit/cell fraction",100,0.7,1.0);
-  TH1F* gmomerr = new TH1F("gmomerr","KK fit momentum error",100,0.0,0.8);
+  TH1F* gmomerr = new TH1F("gmomerr","KK fit momentum error;Mom error (MeV/c)",100,0.0,0.8);
   gprob->SetLineColor(kBlue);
   gnactive->SetLineColor(kBlue);
   gactive->SetLineColor(kBlue);
@@ -40,7 +40,7 @@ void MomResComp(TTree* trks) {
   TH1F* bactive = new TH1F("bactive","Active hit fraction",100,0.0,1.0);
   TH1F* bnull = new TH1F("bnull","Null hit fraction",100,0.0,1.0);
   TH1F* bcell = new TH1F("bcell","hit/cell fraction",100,0.7,1.0);
-  TH1F* bmomerr = new TH1F("bmomerr","KK fit momentum error",100,0.0,0.8);
+  TH1F* bmomerr = new TH1F("bmomerr","KK fit momentum error;Mom error (MeV/c)",100,0.0,0.8);
   bprob->SetLineColor(kRed);
   bnactive->SetLineColor(kRed);
   bactive->SetLineColor(kRed);
@@ -74,6 +74,10 @@ void MomResComp(TTree* trks) {
   bcell->Scale(10.0);
   bmomerr->Scale(10.0);
 
+  TLegend* leg = new TLegend(0.1,0.5,0.5,0.9);
+  leg->AddEntry(gprob,"Good Mom Resolution","L");
+  leg->AddEntry(bprob,"Bad Mom Resolution (X10)","L");
+
   TCanvas* mccan = new TCanvas("mccan","mccan",1000,600);
   mccan->Divide(3,2);
   mccan->cd(1);
@@ -82,6 +86,7 @@ void MomResComp(TTree* trks) {
   mccan->cd(2);
   gactive->Draw();
   bactive->Draw("sameh");
+  leg->Draw();
   mccan->cd(3);
   gnull->Draw();
   bnull->Draw("sameh");
