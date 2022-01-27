@@ -5,5 +5,5 @@
 # disk2 information: rmin rmax zpos zhalf
 380.0 660.0 2367. 100.
 # crystal information: light propagation velocity (mm/ns), showermax depth, intrinsic time resolution (ns), spatial resolution (mm), minimum path to create a hit
-200.0 80.0 1.0 10.0 50
+200.0 80.0 0.5 10.0 50
 
