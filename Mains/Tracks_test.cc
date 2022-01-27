@@ -55,7 +55,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --npot i --printdetail i --saveall i --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --calofile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --npot i --printdetail i --saveall i --faildetail i\n");
 }
 
 int makeConfig(string const& cfile, KinKal::Config& config) {
@@ -162,6 +162,7 @@ int main(int argc, char **argv) {
     {"targetfile",     required_argument, 0, 't' },
     {"trackerfile",     required_argument, 0, 'T' },
     {"ipafile",     required_argument, 0, 'i' },
+    {"calofile",     required_argument, 0, 'c' },
     {"fitschedule",     required_argument, 0, 'X' },
     {"extschedule",     required_argument, 0, 'z' },
     {"process",     required_argument, 0, 's'  },
@@ -199,6 +200,8 @@ int main(int argc, char **argv) {
       case 'T' : trackerfile = string(optarg);
                  break;
       case 'i' : ipafile = string(optarg);
+                 break;
+      case 'c' : calofile = string(optarg);
                  break;
       case 'X' : sfile = string(optarg);
                  break;
