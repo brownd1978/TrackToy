@@ -55,7 +55,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --calofile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --npot i --printdetail i --saveall i --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --calofile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --npot i --saveall i --faildetail i\n");
 }
 
 int makeConfig(string const& cfile, KinKal::Config& config) {
@@ -132,7 +132,6 @@ int main(int argc, char **argv) {
   string tfile("");
   int trkfieldtype(0);
   unsigned minnhits(15); // minimum # of hits
-  bool bfit(true), bext(true); // BField correction config
   //  double mine(90.0); // minimum energy to simulate
   // ttree variables
   TTree* trktree_(0);
@@ -153,7 +152,7 @@ int main(int argc, char **argv) {
   // fit parameters
   KinKal::DVEC sigmas(0.5, 0.5, 0.5, 0.5, 0.002, 0.5); // expected parameter sigmas for loop helix
   double seedsmear(1.0);
-  Config::printLevel detail(Config::none), faildetail(Config::none);
+  Config::printLevel faildetail(Config::none);
 
   static struct option long_options[] = {
     {"mustopsfile",     required_argument, 0, 'm' },
@@ -176,10 +175,7 @@ int main(int argc, char **argv) {
     {"ttree",     required_argument, 0, 'r'  },
     {"tfile",     required_argument, 0, 'R'  },
     {"minnhits",     required_argument, 0, 'N' },
-    {"printdetail",     required_argument, 0, 'p' },
     {"faildetail",     required_argument, 0, 'f' },
-    {"bfit",     required_argument, 0, 'b' },
-    {"bext",     required_argument, 0, 'B' },
     {"npot",     required_argument, 0, 'P' },
     {"rmue",     required_argument, 0, 'M' },
     {NULL, 0,0,0}
@@ -229,13 +225,7 @@ int main(int argc, char **argv) {
                  break;
       case 'N' : minnhits = atoi(optarg);
                  break;
-      case 'p' : detail = (Config::printLevel)atoi(optarg);
-                 break;
       case 'f' : faildetail = (Config::printLevel)atoi(optarg);
-                 break;
-      case 'b' : bfit = atoi(optarg)!=0;
-                 break;
-      case 'B' : bext = atoi(optarg)!=0;
                  break;
       case 'P' : npot = atof(optarg);
                  break;
