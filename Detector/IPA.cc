@@ -46,6 +46,7 @@ namespace TrackToy {
         }
       }
     }
+    std::cout << "Read IPA from file " << fullfile << std::endl;
   }
 
   void IPA::print(std::ostream& os ) const {

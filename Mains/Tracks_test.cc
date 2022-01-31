@@ -111,12 +111,12 @@ int main(int argc, char **argv) {
   using KKMAT = Material<KTRAJ>;
   using KKBF = BFieldEffect<KTRAJ>;
   using Clock = std::chrono::high_resolution_clock;
-  int ntrks(1000);
+  int ntrks(100);
   string bfile("Data/DSMapDump.dat"), mstops("MDC2020n_10pc"), targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
   string calofile("Data/Mu2eCalo.dat");
   string ipafile("Data/Mu2e_IPA.dat");
   string efile_my("Data/EStar_Mylar.dat"); // should come from tracker FIXME
-  string sfile("Schedule.txt"), extfile; // fit schedule
+  string sfile("Schedule_driftfit.txt"), extfile; // fit schedule
   string process("CeMinus");
   string diofile("Data/DIOAl_fine.dat"); // this should be a parameter FIXME
   double mustopeff; // mu stops/POT.  This comes from running MuBeam, which also produces the Mustops.root file.  These MUST be consistent to get physically correct results!!

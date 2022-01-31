@@ -49,12 +49,15 @@ namespace TrackToy {
         for (auto const& ipainter : intersections) {
           double mom = pktraj.momentum(ipainter.mid());
           double plen = pktraj.speed(ipainter.mid())*ipainter.range();
-//          double de = mat_->energyLossMPV(mom,plen,pktraj.mass()); // should sample TODO
-          MoyalDist edist(MoyalDist::MeanRMS(
-              mat_->energyLoss(mom,plen,pktraj.mass()),
-              mat_->energyLossRMS(mom,plen,pktraj.mass())),10);
+          // Moyal dist. models ionization loss
+          double demean = mat_->energyLoss(mom,plen,pktraj.mass());
+          double derms = mat_->energyLossRMS(mom,plen,pktraj.mass());
+          MoyalDist edist(MoyalDist::MeanRMS(demean, derms),10);
           double de = edist.sample(tr_.Uniform(0.0,1.0));
-//          std::cout << "IPA de " << de << std::endl;
+          // add radiative energy loss: model as an expontential with the same mean as the ionization (ie critical energy).
+          // this is particle/energy specific
+//          if(pktraj.beta(ipainter.mid()) > 0.99)de -= tr_.Exp(fabs(demean));
+          //          std::cout << "IPA de " << de << std::endl;
           energy += de;
         }
         retval = updateEnergy(pktraj,intersections.back().end(),energy);

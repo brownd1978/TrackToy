@@ -43,6 +43,7 @@ namespace TrackToy {
         }
       }
     }
+    std::cout << "Read Calorimeter from file " << fullfile << std::endl;
   }
 
   void Calorimeter::print(std::ostream& os ) const {

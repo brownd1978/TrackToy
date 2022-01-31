@@ -64,6 +64,7 @@ namespace TrackToy {
         }
       }
     }
+    std::cout << "Read Tracker from file " << fullfile << std::endl;
   }
 
   void Tracker::print(std::ostream& os ) const {

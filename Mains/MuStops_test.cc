@@ -39,8 +39,8 @@ void print_usage() {
 int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
-  int nbeam(-1);
-  string muonbeam, bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile;
+  int nbeam(1000);
+  string muonbeam("MDC2020n_10pc"), bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile("Data/Mu2eTarget.dat");
   double beameff(0.0), tstep(0.01), tol(1e-3);
   double minmass(100.0); // select muons
 
