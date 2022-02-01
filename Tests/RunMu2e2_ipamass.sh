@@ -1,0 +1,3 @@
+nohup time bin/Tracks --process CeMinus --rmue 3e-17 --ntrks 100000 --mustopsfile Mu2eIIa2 --npot 1.3e22 --tfile Mu2e2DriftAmbig_ipam50 --targetfile Data/Mu2e2Target.dat --trackerfile Data/Mu2e2Tracker.dat --ipafile Data/Mu2e2_IPA_m50.dat --calofile Data/Mu2e2Calo.dat --fitschedule Schedule_driftfit.txt >& Mu2e2DriftAmbigCeMinus_ipam50.log &
+nohup time bin/Tracks --process FlatDIO --ntrks 1000000 --mustopsfile Mu2eIIa2 --npot 1.3e22 --tfile Mu2e2DriftAmbig_ipam50 --targetfile Data/Mu2e2Target.dat --trackerfile Data/Mu2e2Tracker.dat --ipafile Data/Mu2e2_IPA_m50.dat --calofile Data/Mu2e2Calo.dat --fitschedule Schedule_driftfit.txt >& Mu2e2DriftAmbigFlatDIO_ipam50.log &
+
