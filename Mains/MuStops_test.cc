@@ -33,7 +33,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: ParticleTest --mubeam s --bfieldfile s --muonrangefile s --targetfile s --beameff f--tol f  --tstep f --nbeam i\n");
+  printf("Usage: ParticleTest --mubeam s --bfieldfile s --muonrangefile s --targetfile s --tol f  --tstep f --nbeam i --suffix s\n");
 }
 
 int main(int argc, char **argv) {
@@ -41,6 +41,7 @@ int main(int argc, char **argv) {
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
   int nbeam(1000);
   string muonbeam("MDC2020n_10pc"), bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile("Data/Mu2eTarget.dat");
+  string suffix;
   double beameff(0.0), tstep(0.01), tol(1e-3);
   double minmass(100.0); // select muons
 
@@ -49,10 +50,10 @@ int main(int argc, char **argv) {
     {"bfieldfile",     required_argument, 0, 'F' },
     {"muonrangefile",     required_argument, 0, 'm' },
     {"targetfile",     required_argument, 0, 'T' },
-    {"beameff",     required_argument, 0, 'e' },
     {"tol",     required_argument, 0, 't' },
     {"tstep",     required_argument, 0, 's'  },
     {"nbeam",     required_argument, 0, 'n'  },
+    {"suffix",     required_argument, 0, 'S'  },
     {NULL, 0,0,0}
   };
   int opt;
@@ -68,11 +69,11 @@ int main(int argc, char **argv) {
                  break;
       case 'T' : tfile = string(optarg);
                  break;
-      case 'e' : beameff = atof(optarg);
-                 break;
       case 't' : tol = atof(optarg);
                  break;
       case 's' : tstep = atof(optarg);
+                 break;
+      case 'S' : suffix = optarg;
                  break;
       case 'n' : nbeam = atoi(optarg);
                  break;
@@ -121,13 +122,13 @@ int main(int argc, char **argv) {
   // setup target
   Target target(tfile);
   auto const& tgtcyl = target.cylinder();
-  cout << "tgtcyl between " << tgtcyl.zmin() << " and " << tgtcyl.zmax() << " rmin " << tgtcyl.rmin() << " rmax " << tgtcyl.rmax() << endl;
+  target.print(cout);
   // muon range table
   MuonRange muonrange(rfile.c_str(),target.density());
   cout << " muon range file " << rfile << " has density " << muonrange.density() << " and ranges " << muonrange.rangeData().size() << endl;
   int ibeam(0);
   // create a TTree for the output
-  string mustopname = muonbeam + string("MuStops.root");
+  string mustopname = muonbeam + suffix + string("MuStops.root");
   TFile mustopfile(mustopname.c_str(),"RECREATE");
   KinKal::VEC4 stoppos;
   TTree* mustops = new TTree("MuStops","MuStops",1);
@@ -223,7 +224,7 @@ int main(int argc, char **argv) {
   double mueff = beameff*nstopped/nmu;
   cout << "found "<< nstopped << " stopped muons out of " << nmu << ", stopping ratio = " << (float)nstopped/nmu << " stops/POT " << mueff << endl;
   // save Muon efficiencies
-  string effname = muonbeam + string("_MuonStopEff.txt");
+  string effname = muonbeam + suffix + string("MuonStopEff.txt");
   ofstream eff_stream(effname.c_str(),std::ios_base::out);
   eff_stream << mueff << endl;
   // now draw
