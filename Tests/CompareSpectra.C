@@ -2,6 +2,7 @@
 #include "TTree.h"
 #include "TCanvas.h"
 #include "TLegend.h"
+#include "TLine.h"
 #include "TPaveText.h"
 #include "TH1D.h"
 #include <string>
@@ -21,7 +22,7 @@ void CompareSpectra(const char* diofile="FlatDIOTracks.root",double dioscale=1.0
   diomom->SetLineColor(kBlue);
   cemom->SetStats(0);
   cemom->SetLineColor(kRed);
-  double timecut(700.0), momerrcut(0.3), hitfraccut(0.9);
+  double timecut(700.0), momerrcut(0.15), hitfraccut(0.9);
   char cutstring[100];
   snprintf(cutstring,100,"(kkstatus==0&&fmod(kkmidt0,1695)>%3.1f&&kkmidmomerr<%3.3f&&ntrkhits/ncells>%3.3f)*%3.3f",timecut,momerrcut,hitfraccut,dioscale);// filter on fit quality, tracktime, etc
   cout << "DIO selection " << cutstring << endl;
@@ -49,6 +50,9 @@ void CompareSpectra(const char* diofile="FlatDIOTracks.root",double dioscale=1.0
   diomom->SetMinimum(1e-3);
   diomom->Draw("h");
   cemom->Draw("hsame");
+  TLine* cutline= new TLine(momcut,0.0,momcut,0.5*max);
+  cutline->SetLineStyle(4);
+  cutline->Draw();
   TLegend* leg = new TLegend(0.4,0.7,0.9,0.9);
   leg->AddEntry(diomom,diofile,"l");
   leg->AddEntry(cemom,cefile,"l");

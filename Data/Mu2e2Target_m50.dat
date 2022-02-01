@@ -1,0 +1,7 @@
+#
+#  Parameters describing the Mu2e-ii target
+# first material; name and density (gm/cm^3)
+Al 0.66e-2
+# then geometry:
+# rmin rmax zpos zhalf
+21.3 75.0 -4304.0 400.0

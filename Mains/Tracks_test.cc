@@ -248,7 +248,7 @@ int main(int argc, char **argv) {
   TTree* mtree = (TTree*)mustopsfile->Get("MuStops");
   if(ntrks<0)ntrks = mtree->GetEntries();
 // get stop efficiency (per pot)
-  mfile = mstops + string("_MuonStopEff.txt");
+  mfile = mstops + string("MuonStopEff.txt");
   ifstream mstopeffstream(mfile,std::ios_base::in);
   if(mstopeffstream.fail()){
     std::string errmsg = std::string("File doesn't exist " )+ mfile;
