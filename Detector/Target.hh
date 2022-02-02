@@ -20,7 +20,7 @@ namespace TrackToy {
     public:
       using TimeRanges = std::vector<KinKal::TimeRange>;
       enum Material{unknown=-1,Al=1,Ti=2};
-      Target(std::string const& tgtfile); // construct from a structured text file
+      Target(std::string const& tgtfile,TRandom& tr); // construct from a structured text file
       double density() const { return density_;} // gm/cm^3
       auto cylinder() const { return cyl_; }
       // find the  energy loss (mean and RMS) from estar for a path through the target
@@ -35,7 +35,8 @@ namespace TrackToy {
       EStar estar_; // energystar table
       HollowCylinder cyl_;
       double density_;
-      mutable TRandom3 tr_; // random number generator
+      double minpath_; // minimum pathlength
+      TRandom& tr_; // random number generator
   };
 
   template<class PKTRAJ> bool Target::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections,double tol) const {
@@ -54,7 +55,8 @@ namespace TrackToy {
         double energy = pktraj.energy(intersections.front().begin());
         double speed = pktraj.speed(intersections.front().begin());
         for (auto const& range : intersections) {
-          double pathlen = range.range()*speed;
+          // in a real target there's a minimum pathlength, equal to ~1 foil
+          double pathlen = std::max(range.range()*speed,minpath_);
           // should check for particle type FIXME!
           double demean = electronEnergyLoss(energy-pktraj.mass(),pathlen);
           MoyalDist edist(MoyalDist::MeanRMS(demean,demean),10);

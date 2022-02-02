@@ -10,7 +10,7 @@
 #include <stdexcept>
 
 namespace TrackToy {
-  Calorimeter::Calorimeter(std::string const& calofile): tres_(-1.0), pres_(-1.0), minpath_(-1.0)
+  Calorimeter::Calorimeter(std::string const& calofile,TRandom& tr): tres_(-1.0), pres_(-1.0), minpath_(-1.0), tr_(tr)
   {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(calofile);

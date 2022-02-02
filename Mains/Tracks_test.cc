@@ -48,6 +48,7 @@
 #include <string>
 #include <cstring>
 #include <chrono>
+#include <ctime>
 
 //using namespace TrackToy;
 using namespace std;
@@ -55,7 +56,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --calofile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --npot i --saveall i --faildetail i\n");
+  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --calofile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --npot i --saveall i --faildetail i \n");
 }
 
 int makeConfig(string const& cfile, KinKal::Config& config) {
@@ -235,6 +236,7 @@ int main(int argc, char **argv) {
                exit(EXIT_FAILURE);
     }
   }
+  auto now = Clock::now();
   // open the input muonstops file
   string mfile =mstops + string("MuStops.root");
   TFile* mustopsfile = TFile::Open(mfile.c_str(),"READ");
@@ -261,18 +263,24 @@ int main(int argc, char **argv) {
   cout << "Using Materials file " << ttfinder.matMtrDictionaryFileName() << endl;
   MatEnv::MatDBInfo matdb_(ttfinder,MatEnv::DetMaterial::moyalmean);
 
+  // random; set the seed from the clock
+  auto tdiff = Clock::now() - now;
+  double nsecs = std::chrono::duration_cast<std::chrono::nanoseconds>(tdiff).count();
+  unsigned seed = static_cast<unsigned>(rint(nsecs));
+  //  cout << "Nsecs " << nsecs << " seed " << seed << endl;
+  TRandom3 tr_(seed); // random number generator
   // setup target
-  Target target(targetfile);
+  Target target(targetfile,tr_);
   target.print(cout);
   // setup ipa
-  IPA ipa(matdb_,ipafile);
+  IPA ipa(matdb_,ipafile,tr_);
   ipa.print(cout);
   // setup tracker
-  Tracker tracker(matdb_,trackerfile);
+  Tracker tracker(matdb_,trackerfile,tr_);
   tracker.print(cout);
   EStar trackerEStar(efile_my); // this is no longer needed, except for comparisons FIXME
   // setup calo
-  Calorimeter calo(calofile);
+  Calorimeter calo(calofile,tr_);
   calo.print(cout);
   // setup BField
   FileFinder filefinder;
@@ -299,8 +307,6 @@ int main(int argc, char **argv) {
   // setup extension (if provided).
   Config extconfig;
   if(extfile.size() > 0)makeConfig(extfile,extconfig);
-  // randoms
-  TRandom3 tr_; // random number generator
   // setup spectrum
   Spectrum* spectrum(0);
   bool flat(false);
@@ -541,6 +547,9 @@ int main(int argc, char **argv) {
             double kktent = ztime(kktraj,kktraj.range().begin(),tracker.zMin());
             double kktmid = ztime(kktraj,kktraj.range().mid(),tracker.zMid());
             double kktext = ztime(kktraj,kktraj.range().end(),tracker.zMax());
+            // t0 comes from mid section
+            auto const& kkmidtraj = kktraj.nearestPiece(kktmid);
+            tinfo_.kkt0err = sqrt(kkmidtraj.paramVar(kkmidtraj.t0Index()));
             auto entstate = kktraj.stateEstimate(kktent);
             auto midstate = kktraj.stateEstimate(kktmid);
             auto extstate = kktraj.stateEstimate(kktext);

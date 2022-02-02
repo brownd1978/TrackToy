@@ -7,12 +7,13 @@ namespace TrackToy {
     int kkstatus, kkndof, kknbf, kknmat, kknhit, kkniter;
     int kknactive, kknnull;
     float kkchisq, kkprob;
+    float kkt0err;
     void reset() {
       ncells = narcs = ntrkhits = ncalohits = 0;
       kkstatus = -1;
       kkndof = kknbf = kknmat = kknhit = kkniter = 0;
       kknactive = kknnull = 0;
-      kkchisq = kkprob = -1.0;
+      kkchisq = kkprob = kkt0err = -1.0;
     }
   };
 }

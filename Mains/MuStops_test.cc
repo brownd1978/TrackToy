@@ -11,6 +11,7 @@
 #include "TFile.h"
 #include "TSystem.h"
 #include "TDirectory.h"
+#include "TRandom3.h"
 #include "TLegend.h"
 #include "TTree.h"
 #include "TTreeReader.h"
@@ -39,6 +40,7 @@ void print_usage() {
 int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
+  using Clock = std::chrono::high_resolution_clock;
   int nbeam(1000);
   string muonbeam("MDC2020n_10pc"), bfile("Data/DSMapDump.dat"), rfile("Data/MuonRangeAl.dat"), tfile("Data/Mu2eTarget.dat");
   string suffix;
@@ -85,6 +87,7 @@ int main(int argc, char **argv) {
     cout << "No input muon beam file specified: terminating" << endl;
     return 1;
   }
+  auto now = Clock::now();
   // open the input muonbeam file of muon particles artificially stopped at the entrance to the DS; this comes from the running the Mu2e software StepPointMCDumper_module on the MuBeam(Cat) dataset produced by the beam production
   FileFinder filefinder;
   string mbfile = string("Data/") + muonbeam + string("_MuBeamCat.root");
@@ -120,7 +123,12 @@ int main(int argc, char **argv) {
   cout << "axial field from file " << fullfile << " is between " << axfield.zMin() << " and " << axfield.zMax() << " with " << axfield.field().size()
     << " field values from "  << axfield.field().front() << " to "  << axfield.field().back() << endl;
   // setup target
-  Target target(tfile);
+  auto tdiff = Clock::now() - now;
+  double nsecs = std::chrono::duration_cast<std::chrono::nanoseconds>(tdiff).count();
+  unsigned seed = static_cast<unsigned>(rint(nsecs));
+  //  cout << "Nsecs " << nsecs << " seed " << seed << endl;
+  TRandom3 tr_(seed); // random number generator
+  Target target(tfile,tr_);
   auto const& tgtcyl = target.cylinder();
   target.print(cout);
   // muon range table

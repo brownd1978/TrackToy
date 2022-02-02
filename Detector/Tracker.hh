@@ -21,7 +21,7 @@ namespace TrackToy {
   class Tracker {
     public:
       enum CellOrientation{azimuthal=0,axial};
-      Tracker(MatEnv::MatDBInfo const& matdbinfo,std::string const& tfile);
+      Tracker(MatEnv::MatDBInfo const& matdbinfo,std::string const& tfile,TRandom& tr);
       auto const& cylinder() const { return cyl_; }
       unsigned nCells() const { return ncells_; }
       double density() const { return density_;} // gm/mm^3
@@ -63,6 +63,7 @@ namespace TrackToy {
       CellOrientation orientation_; // orientation of the cells
       unsigned ncells_; // number of cells
       double cellDensity_; // effective linear cell density mm^-1
+      double minpath_; // minimum path to score hits
       double density_; // total average density gm/mm^3
       KinKal::StrawMaterial* smat_; // straw material
       double vdrift_; // drift velocity
@@ -72,7 +73,7 @@ namespace TrackToy {
       double lrdoca_; // minimum doca to resolve LR ambiguity
       double hiteff_; // hit efficiency
       double lowscat_, hiscat_, corefrac_; // factors for non-Gaussian scattering
-      mutable TRandom3 tr_; // random number generator
+      TRandom& tr_; // random number generator
   };
 
   template<class KTRAJ> void Tracker::simulateHits(KinKal::BFieldMap const& bfield,
@@ -88,20 +89,23 @@ namespace TrackToy {
     //    std::cout << "ninters " << tinters.size() << std::endl;
     for(auto const& tinter : tinters) {
       double clen = tinter.range()*speed;
-      unsigned ncells = (unsigned)rint(clen*cellDensity_);
-      double hstep = tinter.range()/(ncells+1);
-      double htime = tinter.begin()+0.5*hstep;
-      for(unsigned icell=0;icell<ncells;++icell){
-        // extend the trajectory to this time
-        extendTraj(bfield,mctraj,htime,tol);
-        // create hits and xings for this time
-        bool hashit=simulateHit(bfield,mctraj,htime,hits,xings);
-        // update the trajector for the effect of this material
-        if(hashit){
-          updateTraj(bfield, mctraj,xings.back().get());
+      //
+      if(clen > minpath_){
+        unsigned ncells = (unsigned)floor(clen*cellDensity_);
+        double hstep = tinter.range()/(ncells+1);
+        double htime = tinter.begin()+0.5*hstep;
+        for(unsigned icell=0;icell<ncells;++icell){
+          // extend the trajectory to this time
+          extendTraj(bfield,mctraj,htime,tol);
+          // create hits and xings for this time
+          bool hashit=simulateHit(bfield,mctraj,htime,hits,xings);
+          // update the trajector for the effect of this material
+          if(hashit){
+            updateTraj(bfield, mctraj,xings.back().get());
+          }
+          // update to the next
+          htime += hstep;
         }
-        // update to the next
-        htime += hstep;
       }
     }
   }

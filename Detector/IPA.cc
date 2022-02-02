@@ -11,7 +11,7 @@
 #include <stdexcept>
 #include <string>
 namespace TrackToy {
-  IPA::IPA(MatEnv::MatDBInfo const& matdbinfo,std::string const& tgtfile) : type_(unknown) {
+  IPA::IPA(MatEnv::MatDBInfo const& matdbinfo,std::string const& tgtfile,TRandom& tr) : type_(unknown), tr_(tr) {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(tgtfile);
     std::string line;

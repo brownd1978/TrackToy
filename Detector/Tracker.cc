@@ -10,9 +10,9 @@
 #include <stdexcept>
 
 namespace TrackToy {
-  Tracker::Tracker(MatEnv::MatDBInfo const& matdbinfo,std::string const& trkfile):
+  Tracker::Tracker(MatEnv::MatDBInfo const& matdbinfo,std::string const& trkfile,TRandom& tr):
     ncells_(0), cellDensity_(-1.0), density_(-1.0), smat_(0),
-    vdrift_(-1.0), vprop_(-1.0), sigt_(-1.0), sigl_(-1.0), lrdoca_(-1.0), hiteff_(-1.0), hiscat_(10.0)
+    vdrift_(-1.0), vprop_(-1.0), sigt_(-1.0), sigl_(-1.0), lrdoca_(-1.0), hiteff_(-1.0), hiscat_(10.0), tr_(tr)
   {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(trkfile);
@@ -73,7 +73,7 @@ namespace TrackToy {
     std::cout << "scatter core fraction " << corefrac_ << " low factor " << lowscat_ << " high factor " << hiscat_ << std::endl;
     std::cout << "Cell density (cells/mm) " << cellDensity_ << " with " << ncells_ << " cells oriented ";
     if(orientation_ == azimuthal)
-      std::cout << " azimuthally " << std::endl;
+      std::cout << " azimuthally " << " and miminum path " << minpath_ << std::endl;
     else
       std::cout << " axially " << std::endl;
     std::cout << "Cell radius " << cellRadius() << " wall thickness " << smat_->wallThickness() << std::endl;
