@@ -3,5 +3,5 @@
 # first material; name and density (gm/cm^3)
 Al 1.32e-2
 # then geometry:
-# rmin rmax zpos zhalf
-21.3 75.0 -4304.0 400.0
+# rmin rmax zpos zhalf minpath
+21.3 75.0 -4304.0 400.0 50.0

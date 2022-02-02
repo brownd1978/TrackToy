@@ -18,7 +18,7 @@
 namespace TrackToy {
   class Calorimeter {
     public:
-      Calorimeter(std::string const& tfile);
+      Calorimeter(std::string const& tfile,TRandom& tr);
       auto const& disk(size_t idisk) const { return disks_[idisk]; }
       auto const& vProp() const { return vprop_; }
       double showerMax() const { return shmax_; }
@@ -37,7 +37,7 @@ namespace TrackToy {
       double tres_, pres_; // time and (transverse) position resolution
       double shmax_; // shower max depth
       double minpath_; // minimum path to generate a hit
-      mutable TRandom3 tr_; // random number generator
+      TRandom& tr_; // random number generator
   };
   template<class KTRAJ> unsigned Calorimeter::simulateHits(KinKal::BFieldMap const& bfield,
       KinKal::ParticleTrajectory<KTRAJ>& mctraj,

@@ -8,7 +8,7 @@
 
 namespace TrackToy {
 
-  Target::Target(std::string const& tgtfile): mat_(unknown), density_(-1.0) {
+  Target::Target(std::string const& tgtfile, TRandom& tr ): mat_(unknown), density_(-1.0), tr_(tr) {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(tgtfile);
     std::string line;
@@ -37,7 +37,7 @@ namespace TrackToy {
           }
         } else {
           // get cylinder paramters
-          iss >> rmin >> rmax >> zpos >> zhalf;
+          iss >> rmin >> rmax >> zpos >> zhalf >> minpath_;
         }
       }
     }
@@ -59,7 +59,7 @@ namespace TrackToy {
   }
 
   void Target::print(std::ostream& os ) const {
-    std::cout << "Target of material " << material() << " density " << density()
+    std::cout << "Target of material " << material() << " density " << density() << " and minimum path " << minpath_
       << " with Z between " << cyl_.zmin() << " and " << cyl_.zmax() << " rmin " << cyl_.rmin() << " rmax " << cyl_.rmax() << std::endl;
   }
 

@@ -14,7 +14,7 @@ namespace TrackToy {
   class IPA {
     public:
       enum IPAType { unknown=-1, cylindrical=1, propeller };
-      IPA(MatEnv::MatDBInfo const& matdbinfo,std::string const& file);
+      IPA(MatEnv::MatDBInfo const& matdbinfo,std::string const& file,TRandom& tr);
       auto const& cylinder() const { return cyl_; }
       auto const& material() const { return *mat_; }
       auto type() const { return type_; }
@@ -25,7 +25,7 @@ namespace TrackToy {
       IPAType type_;
       CylindricalShell cyl_;
       const MatEnv::DetMaterial* mat_;
-      mutable TRandom3 tr_; // random number generator
+      TRandom& tr_; // random number generator
   };
 
 
