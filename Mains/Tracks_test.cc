@@ -267,7 +267,7 @@ int main(int argc, char **argv) {
   auto tdiff = Clock::now() - now;
   double nsecs = std::chrono::duration_cast<std::chrono::nanoseconds>(tdiff).count();
   unsigned seed = static_cast<unsigned>(rint(nsecs));
-  //  cout << "Nsecs " << nsecs << " seed " << seed << endl;
+  cout << "Random seed " << seed << endl;
   TRandom3 tr_(seed); // random number generator
   // setup target
   Target target(targetfile,tr_);
