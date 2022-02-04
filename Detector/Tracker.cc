@@ -39,7 +39,7 @@ namespace TrackToy {
           cyl_ = HollowCylinder(rmin,rmax,zpos,zhalf);
         } else if(rcell < 0.0) {
           // then cell description
-          iss >> orient >> ncells_ >> rcell >> lcell >> wthick >> rwire ;
+          iss >> orient >> ncells_ >> rcell >> lcell >> wthick >> rwire >> minpath_;
           // std::cout << "ncells " << ncells_  << " rcell " << rcell << " lcell " << lcell << " wthick " << wthick << " rwire " << rwire << std::endl;
           if(rcell<0.0)throw std::invalid_argument("Invalid cell parameters");
         } else if(strawwall=="") {
