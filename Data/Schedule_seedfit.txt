@@ -4,5 +4,4 @@
 #  Then, meta-iteration specific parameters: temperature (mindoca maxdoca minprob)
 2.0  20 20  1.0e-6
 1.0  10 10  1.0e-6
-0.0  5 5 1.0e-6
-
+0.5  5  5   1.0e-6

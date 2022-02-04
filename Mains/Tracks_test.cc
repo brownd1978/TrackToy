@@ -56,7 +56,7 @@ using namespace TrackToy;
 using namespace KinKal;
 
 void print_usage() {
-  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --calofile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --npot i --saveall i --faildetail i \n");
+  printf("Usage: CeTrackTest --mustopsfile s --rmue f --bfield s --trkfield i --targetfile s --trackerfile s --ipafile s --calofile s --fitschedule s--extschedule s --process s --endpoint f --endrange f --lifetime f --tol f  --seed i --npts i --ntrks i --draw i --ttree i --tfile s --minnhits i --npot i --saveall i --faildetail i \n");
 }
 
 int makeConfig(string const& cfile, KinKal::Config& config) {
@@ -78,9 +78,8 @@ int makeConfig(string const& cfile, KinKal::Config& config) {
   }
   string line;
   int plevel(-1);
-  unsigned nmiter(0);
   while (getline(ifs,line)){
-    if(strncmp(line.c_str(),"#",1)!=0){
+    if(line.size() > 0 && strncmp(line.c_str(),"#",1)!=0){
       istringstream ss(line);
       if(plevel < 0) {
         ss >> config.maxniter_ >> config.dwt_ >> config.convdchisq_ >> config.divdchisq_ >>
@@ -90,10 +89,10 @@ int makeConfig(string const& cfile, KinKal::Config& config) {
       } else {
         double temp, mindoca(-1.0),maxdoca(-1.0), minprob(-1.0);
         ss >> temp >> mindoca >> maxdoca >> minprob;
-        MetaIterConfig mconfig(temp, nmiter++);
+        MetaIterConfig mconfig(temp);
         if(mindoca >0.0 || maxdoca > 0.0){
           // setup and insert the updater
-          cout << "SimpleWireHitUpdater for iteration " << nmiter << " with mindoca " << mindoca << " maxdoca " << maxdoca << " minprob " << minprob << endl;
+          cout << "SimpleWireHitUpdater with mindoca " << mindoca << " maxdoca " << maxdoca << " minprob " << minprob << endl;
           SimpleWireHitUpdater updater(mindoca,maxdoca,minprob);
           mconfig.updaters_.push_back(std::any(updater));
         }
@@ -153,6 +152,7 @@ int main(int argc, char **argv) {
   // fit parameters
   KinKal::DVEC sigmas(0.5, 0.5, 0.5, 0.5, 0.002, 0.5); // expected parameter sigmas for loop helix
   double seedsmear(1.0);
+  unsigned seed(0);
   Config::printLevel faildetail(Config::none);
 
   static struct option long_options[] = {
@@ -169,6 +169,7 @@ int main(int argc, char **argv) {
     {"endpoint",     required_argument, 0, 'e' },
     {"endrange",     required_argument, 0, 'E' },
     {"tol",     required_argument, 0, 'x' },
+    {"seed",     required_argument, 0, 'I'  },
     {"ntrks",     required_argument, 0, 'n'  },
     {"npts",     required_argument, 0, 'q'  },
     {"draw",     required_argument, 0, 'd'  },
@@ -211,6 +212,8 @@ int main(int argc, char **argv) {
       case 'E' : endrange = atof(optarg);
                  break;
       case 'x' : tol = atof(optarg);
+                 break;
+      case 'I' : seed = atoi(optarg);
                  break;
       case 'q' : npts = atoi(optarg);
                  break;
@@ -264,9 +267,11 @@ int main(int argc, char **argv) {
   MatEnv::MatDBInfo matdb_(ttfinder,MatEnv::DetMaterial::moyalmean);
 
   // random; set the seed from the clock
-  auto tdiff = Clock::now() - now;
-  double nsecs = std::chrono::duration_cast<std::chrono::nanoseconds>(tdiff).count();
-  unsigned seed = static_cast<unsigned>(rint(nsecs));
+  if(seed == 0){
+    auto tdiff = Clock::now() - now;
+    double nsecs = std::chrono::duration_cast<std::chrono::nanoseconds>(tdiff).count();
+    seed = static_cast<unsigned>(rint(nsecs));
+  }
   cout << "Random seed " << seed << endl;
   TRandom3 tr_(seed); // random number generator
   // setup target
@@ -304,9 +309,13 @@ int main(int argc, char **argv) {
   // setup fit configuration
   Config config;
   makeConfig(sfile,config);
+  cout << "Fit configuration " << config << endl;
   // setup extension (if provided).
   Config extconfig;
-  if(extfile.size() > 0)makeConfig(extfile,extconfig);
+  if(extfile.size() > 0){
+    makeConfig(extfile,extconfig);
+    cout << "Ext configuration " << extconfig << endl;
+  }
   // setup spectrum
   Spectrum* spectrum(0);
   bool flat(false);
