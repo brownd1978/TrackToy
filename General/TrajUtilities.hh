@@ -63,7 +63,7 @@ namespace TrackToy {
     double tstart = pktraj.back().range().begin();
     KinKal::TimeRange range(tstart,pktraj.range().end());
     while(range.begin() < extime){
-      range.begin() = bfield.rangeInTolerance(pktraj.back(),range.begin(),tol);
+      range = KinKal::TimeRange(bfield.rangeInTolerance(pktraj.back(),range.begin(),tol),range.end());
       if(range.begin() < range.end()){
         auto pstate = pktraj.back().state(range.begin());
         auto pos = pstate.position3();
