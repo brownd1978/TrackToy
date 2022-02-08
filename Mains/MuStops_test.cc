@@ -179,7 +179,7 @@ int main(int argc, char **argv) {
       auto pos = pstate->position3();
       // extend to the end of the target
       while(pos.Z() < tgtcyl.zmax()){
-        range.begin() = axfield.rangeInTolerance(ptraj.back(),range.begin(),tol);
+        range = KinKal::TimeRange(axfield.rangeInTolerance(ptraj.back(),range.begin(),tol),range.end());
         if(range.begin() < range.end()){
           // Predict new position and momentum at this end, making linear correction for BField effects
           auto endstate = ptraj.back().state(range.begin());

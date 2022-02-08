@@ -61,7 +61,8 @@ namespace TrackToy {
         if(crosses){
           if(oldinside){
             // finish this range
-            tranges.back().end() = ttest;
+            KinKal::TimeRange newrange(tranges.back().begin(),ttest);
+            tranges.back() = newrange;
           }
           else {
             // entering: create the range
@@ -92,7 +93,7 @@ namespace TrackToy {
       }
     }
     // finish the last range
-    if(inside)tranges.back().end() = std::min(ttest,pktraj.range().end());
+    if(inside)tranges.back() = KinKal::TimeRange(tranges.back().begin(),std::min(ttest,pktraj.range().end()));
  }
 }
 #endif
