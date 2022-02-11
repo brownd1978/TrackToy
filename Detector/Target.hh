@@ -7,7 +7,7 @@
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/EStar.hh"
-#include "KinKal/MatEnv/MoyalDist.hh"
+#include "KinKal/MatEnv/ELossDistributions.hh"
 #include "KinKal/General/BFieldMap.hh"
 #include "KinKal/General/TimeRange.hh"
 #include "TRandom3.h"
