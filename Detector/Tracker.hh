@@ -6,7 +6,7 @@
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "KinKal/MatEnv/MatDBInfo.hh"
-#include "KinKal/MatEnv/MoyalDist.hh"
+#include "KinKal/MatEnv/ELossDistributions.hh"
 #include "KinKal/General/Vectors.hh"
 #include "KinKal/Trajectory/Line.hh"
 #include "KinKal/Detector/StrawXing.hh"

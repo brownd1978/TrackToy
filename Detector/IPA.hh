@@ -5,7 +5,7 @@
 #define TrackToy_Detector_IPA_hh
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/MatEnv/DetMaterial.hh"
-#include "KinKal/MatEnv/MoyalDist.hh"
+#include "KinKal/MatEnv/ELossDistributions.hh"
 #include "KinKal/General/TimeRange.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/CylindricalShell.hh"
