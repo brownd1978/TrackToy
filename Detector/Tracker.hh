@@ -218,17 +218,20 @@ namespace TrackToy {
     // simulate energy loss and multiple scattering from this xing
     auto txing = sxing->crossingTime();
     auto const& endpiece = mctraj.nearestPiece(txing);
-    auto mom = endpiece.momentum(txing);
     auto endmom = endpiece.momentum4(txing);
+    double mom = endmom.Vect().R();
     auto endpos = endpiece.position4(txing);
     std::array<double,3> dmom {0.0,0.0,0.0}, momvar {0.0,0.0,0.0};
     sxing->materialEffects(mctraj,KinKal::TimeDir::forwards, dmom, momvar);
     MoyalDist edist(MoyalDist::MeanRMS(dmom[KinKal::MomBasis::momdir_],sqrt(momvar[KinKal::MomBasis::momdir_])),10);
+    // radiation energy loss model
+    double radFrac = sxing->radiationFraction();
+    KinKal::BremssLoss bLoss;
 
     for(int idir=0;idir<=KinKal::MomBasis::phidir_; idir++) {
       auto mdir = static_cast<KinKal::MomBasis::Direction>(idir);
       double momsig = sqrt(momvar[idir]);
-      double dm;
+      double dm, bremloss;
       // generate a random effect given this variance and mean.  Note momEffect is scaled to momentum
       switch( mdir ) {
         case KinKal::MomBasis::perpdir_: case KinKal::MomBasis::phidir_ :
@@ -236,9 +239,12 @@ namespace TrackToy {
           dm = tr_.Uniform(0.0,1.0) < corefrac_ ?  tr_.Gaus(dmom[idir],lowscat_*momsig) : tr_.Gaus(dmom[idir],hiscat_*momsig);
           break;
         case KinKal::MomBasis::momdir_ :
-    // calculate a smeared energy loss using a Moyal distribution
-//          dm = std::min(0.0,tr_.Gaus(dmom[idir],momsig));
+          // calculate a smeared energy loss using a Moyal distribution
           dm = edist.sample(tr_.Uniform(0.0,1.0));
+          bremloss = std::min(bLoss.sampleSSPGamma(mom,radFrac),mom);
+          std::cout << "Ionization eloss = " << dm << " rad frac " << radFrac << " rad eloss " << bremloss << std::endl;
+          dm -= bremloss;
+          dm /= mom;
           break;
         default:
           throw std::invalid_argument("Invalid direction");

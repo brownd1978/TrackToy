@@ -52,13 +52,16 @@ namespace TrackToy {
           // Moyal dist. models ionization loss
           double demean = mat_->energyLoss(mom,plen,pktraj.mass());
           double derms = mat_->energyLossRMS(mom,plen,pktraj.mass());
+          // model ionization energy loss using a Moyal distribution
           MoyalDist edist(MoyalDist::MeanRMS(demean, derms),10);
           double de = edist.sample(tr_.Uniform(0.0,1.0));
-          // add radiative energy loss: model as an expontential with the same mean as the ionization (ie critical energy).
-          // this is particle/energy specific
-//          if(pktraj.beta(ipainter.mid()) > 0.99)de -= tr_.Exp(fabs(demean));
-          //          std::cout << "IPA de " << de << std::endl;
           energy += de;
+          // add radiative energy loss.  note we have to convert to cm!!!
+          double radFrac = mat_->radiationFraction(ipainter.range()/10.0);
+          KinKal::BremssLoss bLoss;
+          double bremloss = std::min(bLoss.sampleSSPGamma(energy,radFrac),energy);
+//          std::cout << "Ionization eloss = " << de << " rad frac " << radFrac << " rad eloss " << bremloss << std::endl;
+          energy -= bremloss;
         }
         retval = updateEnergy(pktraj,intersections.back().end(),energy);
       }
