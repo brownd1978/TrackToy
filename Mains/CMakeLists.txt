@@ -3,7 +3,6 @@
 set( MAIN_FILES
   Spectrum_test.cc
   MuonRange_test.cc
-  Particle_test.cc
   BField_test.cc
   MuStops_test.cc
   Tracks_test.cc
