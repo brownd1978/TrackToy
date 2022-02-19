@@ -56,17 +56,17 @@ namespace TrackToy {
           MoyalDist edist(MoyalDist::MeanRMS(fabs(demean), derms),10);
           double ionloss = edist.sample(tr_.Uniform(0.0,1.0));
           // add radiative energy loss.  note we have to convert to cm!!!
-          double radFrac = mat_->radiationFraction(ipainter.range()/10.0);
+          double radFrac = mat_->radiationFraction(ipainter.range())/10;
           KinKal::BremssLoss bLoss;
           double bremloss = bLoss.sampleSSPGamma(energy,radFrac);
           // delta energy loss
-          KinKal::DeltaRayLoss dLoss(mat_, mom,plen, pktraj.mass());
+          KinKal::DeltaRayLoss dLoss(mat_, mom,plen/10, pktraj.mass());
           double dloss = dLoss.sampleDRL();
           double totloss = ionloss + bremloss + dloss;
 //          std::cout << "IPA Ionization eloss = " << ionloss << " Delta eloss " << dloss << " rad eloss "  << bremloss << " tot " << totloss << std::endl;
-          double oldenergy = energy;
+//          double oldenergy = energy;
           energy -= totloss;
-          std::cout << "old energy " << oldenergy << " new energy " << energy << std::endl;
+//          std::cout << "old energy " << oldenergy << " new energy " << energy << std::endl;
           retval = updateEnergy(pktraj,ipainter.end(),energy);
           if(!retval)break;
         }

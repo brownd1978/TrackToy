@@ -1,11 +1,11 @@
 #
 #  Parameters describing the Mu2e tracker
 # Volume information: rmin rmax zpos zhalf
-350.0 700.0 0.0 1500.0
+365.0 700.0 0.0 1500.0
 # Cell information: orientation (0=azimuthal, 1=axial), Ncells, cell radius, cell length, wall thickness, wire radius, minimum path
 0 20736 2.5 800.0 0.015 0.0125 100
 # material information: wall, gas, and wire
 straw-wall_mu2e straw-gas_mu2e straw-wire_mu2e
-# Hit information: drift velocity (mm/ns), propagation velocity (mm/ns), drift resolution (ns), propagation resolution (ns), min LR doca (mm), hit efficiencydd
+# Hit information: drift velocity (mm/ns), propagation velocity (mm/ns), drift resolution (ns), propagation resolution (ns), min LR doca (mm), hit efficiency
 0.065 200 6.0 0.1 0.5 0.95
 

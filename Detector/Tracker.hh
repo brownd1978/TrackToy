@@ -224,8 +224,9 @@ namespace TrackToy {
     auto endpos = endpiece.position4(txing);
     std::array<double,3> dmom {0.0,0.0,0.0}, momvar {0.0,0.0,0.0};
     sxing->materialEffects(mctraj,KinKal::TimeDir::forwards, dmom, momvar);
-   std::cout << "DMOM " << dmom[0] << std::endl;
-    MoyalDist edist(MoyalDist::MeanRMS(fabs(dmom[KinKal::MomBasis::momdir_]),sqrt(momvar[KinKal::MomBasis::momdir_])),10);
+//   std::cout << "DMOM " << dmom[0] << std::endl;
+   // note materialEffects returns the normalized energy change
+    MoyalDist edist(MoyalDist::MeanRMS(fabs(dmom[KinKal::MomBasis::momdir_])*mom,sqrt(momvar[KinKal::MomBasis::momdir_])),10);
     // radiation energy loss model
     KinKal::BremssLoss bLoss;
     for(int idir=0;idir<=KinKal::MomBasis::phidir_; idir++) {
@@ -233,9 +234,10 @@ namespace TrackToy {
       double momsig = sqrt(momvar[idir]);
       double ionloss, bremloss, dloss;
       double dm;
-      double radFrac = sxing->radiationFraction();
+      double radFrac = sxing->radiationFraction()/10; // convert to cm
       // only include wall material for now TODO
-      KinKal::DeltaRayLoss dLoss(&(sxing->matXings()[0].dmat_), mom,sxing->matXings()[0].plen_, endpiece.mass());
+      KinKal::DeltaRayLoss dLoss(&(sxing->matXings()[0].dmat_), mom,sxing->matXings()[0].plen_/10.0, endpiece.mass());
+      dLoss.setCutOffEnergy(0.001); // 1 KeV
       // generate a random effect given this variance and mean.  Note momEffect is scaled to momentum
       switch( mdir ) {
         case KinKal::MomBasis::perpdir_: case KinKal::MomBasis::phidir_ :
@@ -246,9 +248,9 @@ namespace TrackToy {
         case KinKal::MomBasis::momdir_ :
           // calculate a smeared energy loss using a Moyal distribution
           ionloss = edist.sample(tr_.Uniform(0.0,1.0));
-          bremloss = bLoss.sampleSSPGamma(mom,radFrac/10.0);
+          bremloss = bLoss.sampleSSPGamma(mom,radFrac);
           dloss = dLoss.sampleDRL();
-          std::cout << "Tracker Ionization eloss = " << ionloss << " Delta eloss " << dloss << " rad eloss "  << bremloss << std::endl;
+//          std::cout << "Tracker Ionization eloss = " << ionloss << " Delta eloss " << dloss << " rad eloss "  << bremloss << std::endl;
           dm = std::max(-(ionloss+bremloss+dloss),-mom); // must be positive
           break;
         default:
@@ -256,7 +258,7 @@ namespace TrackToy {
       }
       momvec += endpiece.direction(txing,mdir)*dm;
     }
-    std::cout << "startmom " << mom << " endmom " << momvec.R() << std::endl;
+//    std::cout << "startmom " << mom << " endmom " << momvec.R() << std::endl;
     endmom.SetCoordinates(momvec.X(), momvec.Y(), momvec.Z(),endmom.M());
     // generate a new piece and append
     auto bnom = bfield.fieldVect(endpos.Vect());
