@@ -476,10 +476,11 @@ int main(int argc, char **argv) {
         if(hits.size() >= minnhits){
 // calcluate the estart energy loss
           double trackerpath(0.0);
-          double ke = cestate.energy() - cestate.mass();
           for(auto const& inter : trackerinters) { trackerpath += speed*inter.range(); }
-          trackerde_ = -100*trackerEStar.dEIonization(ke)*tracker.density()*trackerpath; // unit conversion
+//          double ke = cestate.energy() - cestate.mass();
+//          trackerde_ = -100*trackerEStar.dEIonization(ke)*tracker.density()*trackerpath; // unit conversion
           trackere_ = mctraj.energy(mctraj.range().end());
+          trackerde_ = trackere_ - ipae_;
           tarde->Fill(targetde_);
           ipade->Fill(ipade_);
           trkde->Fill(trackerde_);
