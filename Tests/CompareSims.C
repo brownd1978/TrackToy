@@ -17,7 +17,7 @@ void CompareSims(const char* ttfile="Mu2eDriftAmbigCeMinusTracks.root", const ch
   TTree* trktoy = (TTree*)ttf->Get("trks");
   TTree* trkana = (TTree*)(((TDirectory*)(taf->Get("TrkAnaNeg")))->Get("trkana"));
 // compute normalization
-  TCut ttgood("kkstatus<=1&&kknactive>=15");
+  TCut ttgood("kkstatus<=1");
   TCut tagood("de.status<=2");
   TH1F* ttmcentmom = new TH1F("ttmcentmom","MC CE momentum at tracker entrance",120,100.0,106.0);
   TH1F* tamcentmom = new TH1F("tamcentmom","MC momentum at tracker entrance",120,100.0,106.0);
@@ -71,7 +71,7 @@ void CompareSims(const char* ttfile="Mu2eDriftAmbigCeMinusTracks.root", const ch
   TH1F* ttntrkcells = new TH1F("ttntrkcells","N Track Cells",100,-0.5,99.5);
   TH1F* tantrkcells = new TH1F("tantrkcells","N Track Cells",100,-0.5,99.5);
   trktoy->Project("ttntrkcells","ncells",ttgood);
-  trkana->Project("tantrkcells","de.nmat",tagood);
+  trkana->Project("tantrkcells","de.nmatactive",tagood);
   ttntrkcells->Scale(ttscale);
   tantrkcells->Scale(tascale);
   ttntrkcells->SetLineColor(kRed);

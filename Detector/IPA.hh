@@ -35,7 +35,6 @@ namespace TrackToy {
     intersections.clear();
     // record the end of the previous extension; this is where new extensions start
     double tstart = pktraj.back().range().begin();
-    double energy = pktraj.energy(tstart);
     // extend through the IPA or exiting the BField (backwards)
     retval = extendZ(pktraj,bfield, cyl_.zmax(), tol);
 //   std::cout << "IPA extend " << retval << std::endl;
@@ -46,21 +45,31 @@ namespace TrackToy {
       static double tstep(0.01);
       cyl_.intersect(pktraj,intersections,tstart,tstep);
       if(intersections.size() > 0){
+        double energy = pktraj.energy(intersections.front().begin());
         for (auto const& ipainter : intersections) {
           double mom = pktraj.momentum(ipainter.mid());
           double plen = pktraj.speed(ipainter.mid())*ipainter.range();
           // Moyal dist. models ionization loss
           double demean = mat_->energyLoss(mom,plen,pktraj.mass());
           double derms = mat_->energyLossRMS(mom,plen,pktraj.mass());
-          MoyalDist edist(MoyalDist::MeanRMS(demean, derms),10);
-          double de = edist.sample(tr_.Uniform(0.0,1.0));
-          // add radiative energy loss: model as an expontential with the same mean as the ionization (ie critical energy).
-          // this is particle/energy specific
-//          if(pktraj.beta(ipainter.mid()) > 0.99)de -= tr_.Exp(fabs(demean));
-          //          std::cout << "IPA de " << de << std::endl;
-          energy += de;
+          // model ionization energy loss using a Moyal distribution
+          MoyalDist edist(MoyalDist::MeanRMS(fabs(demean), derms),10);
+          double ionloss = edist.sample(tr_.Uniform(0.0,1.0));
+          // add radiative energy loss.  note we have to convert to cm!!!
+          double radFrac = mat_->radiationFraction(ipainter.range())/10;
+          KinKal::BremssLoss bLoss;
+          double bremloss = bLoss.sampleSSPGamma(energy,radFrac);
+          // delta energy loss
+          KinKal::DeltaRayLoss dLoss(mat_, mom,plen/10, pktraj.mass());
+          double dloss = dLoss.sampleDRL();
+          double totloss = ionloss + bremloss + dloss;
+//          std::cout << "IPA Ionization eloss = " << ionloss << " Delta eloss " << dloss << " rad eloss "  << bremloss << " tot " << totloss << std::endl;
+//          double oldenergy = energy;
+          energy -= totloss;
+//          std::cout << "old energy " << oldenergy << " new energy " << energy << std::endl;
+          retval = updateEnergy(pktraj,ipainter.end(),energy);
+          if(!retval)break;
         }
-        retval = updateEnergy(pktraj,intersections.back().end(),energy);
       }
     }
     return retval;
