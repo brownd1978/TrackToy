@@ -107,9 +107,9 @@ int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
   using KKTRK = Track<KTRAJ>;
-  using KKHIT = HitConstraint<KTRAJ>;
+  using KKHIT = Measurement<KTRAJ>;
   using KKMAT = Material<KTRAJ>;
-  using KKBF = BFieldEffect<KTRAJ>;
+  using KKBF = BField<KTRAJ>;
   using Clock = std::chrono::high_resolution_clock;
   int ntrks(100);
   string bfile("Data/DSMapDump.dat"), mstops("MDC2020n_10pc"), targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
