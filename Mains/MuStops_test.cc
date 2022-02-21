@@ -133,8 +133,8 @@ int main(int argc, char **argv) {
   unsigned seed = static_cast<unsigned>(rint(nsecs));
   //  cout << "Nsecs " << nsecs << " seed " << seed << endl;
   TRandom3 tr_(seed); // random number generator
-//  Target target(matdb_,tfile,tr_);
-  Target target(tfile,tr_);
+  Target target(matdb_,tfile,tr_);
+//  Target target(tfile,tr_);
   auto const& tgtcyl = target.cylinder();
   target.print(cout);
   // muon range table

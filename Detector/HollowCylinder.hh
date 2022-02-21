@@ -25,7 +25,9 @@ namespace TrackToy {
       double length() const { return 2.0*zhalf_; }
       double area() const { return M_PI*(rmax_*rmax_ - rmin_*rmin_); }
       double volume() const { return length()*area(); } // mm^3
-      // find intersections of a trajectory with this cylinder.  Return the time ranges in which the
+      // find the 1st intersection of the trajectory with this cylinder, starting from the given time
+      template<class PKTRAJ> KinKal::TimeRange intersect(PKTRAJ const& pktraj, double tstart, double tstep) const;
+      // find all intersections of a trajectory with this cylinder.  Return the time ranges in which the
       // trajectory is inside the physical volume
       template<class PKTRAJ> void intersect(PKTRAJ const& pktraj, TimeRanges& tranges, double tstart, double tstep) const;
     private:
@@ -38,12 +40,23 @@ namespace TrackToy {
   std::ostream& operator <<(std::ostream& ost, HollowCylinder const& hcyl);
 
   template<class PKTRAJ> void HollowCylinder::intersect(PKTRAJ const& pktraj, TimeRanges& tranges, double tstart, double tstep) const {
+    using KinKal::TimeRange;
     tranges.clear();
+    TimeRange trange(tstart,tstart);
+    do {
+      trange = intersect(pktraj,trange.end(),tstep);
+      if(!trange.null())tranges.push_back(trange);
+    } while( (!trange.null()) && trange.end() < pktraj.range().end());
+  }
+
+  template<class PKTRAJ> KinKal::TimeRange HollowCylinder::intersect(PKTRAJ const& pktraj, double tstart, double tstep) const {
+    using KinKal::TimeRange;
     // see if we are starting inside
     double ttest = tstart;
     auto pos = pktraj.position3(ttest);
     bool inside = isInside(pos);
-    if(inside) tranges.push_back(KinKal::TimeRange(ttest,ttest));
+    TimeRange trange;
+    if(inside) trange = TimeRange(ttest,ttest);
     while(ttest < pktraj.range().end()){
       //      cout << "particle enters at " << pos << endl;
       auto vel = pktraj.velocity(ttest);
@@ -61,12 +74,12 @@ namespace TrackToy {
         if(crosses){
           if(oldinside){
             // finish this range
-            KinKal::TimeRange newrange(tranges.back().begin(),ttest);
-            tranges.back() = newrange;
+            trange =TimeRange(trange.begin(),ttest);
+            break;
           }
           else {
             // entering: create the range
-            tranges.push_back(KinKal::TimeRange(ttest,ttest));
+            trange = TimeRange(ttest,ttest);
           }
         }
       } else {
@@ -89,11 +102,12 @@ namespace TrackToy {
           dt = (vel.Z() > 0) ?  (zmin() - pos.Z())/vel.Z() : (zmax() - pos.Z())/vel.Z();
         }
         inside = isInside(pos);
-        if(inside) tranges.push_back(KinKal::TimeRange(ttest,ttest));
+        if(inside) trange = TimeRange(ttest,ttest);
       }
     }
-    // finish the last range
-    if(inside)tranges.back() = KinKal::TimeRange(tranges.back().begin(),std::min(ttest,pktraj.range().end()));
- }
+    // finish the last range if we go out of range
+    if(inside)trange = TimeRange(trange.begin(),std::min(ttest,pktraj.range().end()));
+    return trange;
+  }
 }
 #endif

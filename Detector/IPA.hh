@@ -30,6 +30,8 @@ namespace TrackToy {
 
 
   template<class PKTRAJ> bool IPA::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections,double tol) const {
+    using KinKal::VEC3;
+    using KinKal::TimeRange;
     intersections.clear();
     // record the end of the previous extension; this is where new extensions start
     double tstart = pktraj.back().range().begin();
@@ -41,10 +43,11 @@ namespace TrackToy {
 //      std::cout << "zstart " << pstart.Z() << " Z extend " << zipa << std::endl;
       // first find the intersections.
       static double tstep(0.01);
-      cyl_.intersect(pktraj,intersections,tstart,tstep);
-      for (auto const& ipainter : intersections) {
-        double energy = pktraj.energy(ipainter.mid());
-        double plen = pktraj.speed(ipainter.mid())*ipainter.range();
+      TimeRange trange = cyl_.intersect(pktraj,tstart,tstep);
+      while( (!trange.null()) && trange.end() < pktraj.range().end()) {
+        intersections.push_back(trange);
+        double energy = pktraj.energy(trange.mid());
+        double plen = pktraj.speed(trange.mid())*trange.range();
         // Moyal dist. models ionization loss
         double demean = mat_->energyLoss(energy,plen,pktraj.mass());
         double derms = mat_->energyLossRMS(energy,plen,pktraj.mass());
@@ -52,7 +55,7 @@ namespace TrackToy {
         MoyalDist edist(MoyalDist::MeanRMS(fabs(demean), derms),10);
         double ionloss = edist.sample(tr_.Uniform(0.0,1.0));
         // add radiative energy loss.  note we have to convert to cm!!!
-        double radFrac = mat_->radiationFraction(ipainter.range())/10;
+        double radFrac = mat_->radiationFraction(trange.range())/10;
         BremssLoss bLoss;
         double bremloss = bLoss.sampleSSPGamma(energy,radFrac);
         // delta energy loss
@@ -63,8 +66,18 @@ namespace TrackToy {
         //          double oldenergy = energy;
         energy -= totloss;
         //          std::cout << "old energy " << oldenergy << " new energy " << energy << std::endl;
-        retval = updateEnergy(pktraj,ipainter.end(),energy);
+        // scattering
+        auto momvec = pktraj.momentum3(trange.mid());
+        double mom = momvec.R();
+        double scatterRMS = mat_->scatterAngleRMS(mom,plen,pktraj.mass());
+        // generate random momentum scatter
+        VEC3 phidir = VEC3(momvec.Y(),-momvec.X(),0.0).Unit();
+        double momtan = tan(momvec.Theta());
+        VEC3 thedir = VEC3(momvec.X()/momtan,momvec.Y()/momtan,-momvec.Z()*momtan).Unit();
+        auto dmom = tr_.Gaus(0.0,scatterRMS)*mom*phidir + tr_.Gaus(0.0,scatterRMS)*mom*thedir;
+        retval = updateEnergy(pktraj,trange.mid(),energy,dmom);
         if(!retval)break;
+        trange = cyl_.intersect(pktraj,trange.end(),tstep);
       }
     }
     return retval;

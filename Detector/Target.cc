@@ -8,7 +8,7 @@
 
 namespace TrackToy {
 
-  Target::Target(std::string const& tgtfile, TRandom& tr ): mat_(unknown), density_(-1.0), tr_(tr) {
+  Target::Target(MatEnv::MatDBInfo const& matdbinfo, std::string const& tgtfile, TRandom& tr ): matname_(unknown), density_(-1.0), tr_(tr) {
     FileFinder filefinder;
     std::string fullfile = filefinder.fullFile(tgtfile);
     std::string line;
@@ -25,12 +25,13 @@ namespace TrackToy {
         // strip leading whitespace
         line = std::regex_replace(line, std::regex("^ +"), "");
         std::istringstream iss(line);
-        if(mat_ == unknown){
+        if(matname_ == unknown){
           iss >> material >> density_;
           if(material == "Al"){
-            mat_ = Al;
+            matname_ = Al;
             // create the EStar from this
             estar_ = EStar(efile_al);
+            mat_ = matdbinfo.findDetMaterial("AlTarget");
           } else {
             std::string errmsg = std::string("Invalid Material ")+material;
             throw std::invalid_argument(errmsg);
@@ -48,7 +49,7 @@ namespace TrackToy {
 
   std::string Target::material() const {
     std::string retval("unknown");
-    switch (mat_) {
+    switch (matname_) {
     case Al:
       retval = "Aluminum";
       break;
@@ -59,7 +60,7 @@ namespace TrackToy {
   }
 
   void Target::print(std::ostream& os ) const {
-    std::cout << "Target of material " << material() << " density " << density() << " and minimum path " << minpath_
+    std::cout << "Target of material " << mat_->name()  << " density " << density() << " and minimum path " << minpath_
       << " with Z between " << cyl_.zmin() << " and " << cyl_.zmax() << " rmin " << cyl_.rmin() << " rmax " << cyl_.rmax() << std::endl;
   }
 

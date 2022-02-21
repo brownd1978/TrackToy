@@ -13,15 +13,15 @@
 namespace TrackToy {
   //  Update the state of a trajectory for a change in the energy.  If this energy is still physical, this will append a new
   //  trajectory on a piecetraj at the point of the energy loss assignment and return true.  If not, it will terminate the trajectory and return false
-  template<class KTRAJ> bool updateEnergy(KinKal::ParticleTrajectory<KTRAJ>& pktraj, double time, double newe) {
+  template<class KTRAJ> bool updateEnergy(KinKal::ParticleTrajectory<KTRAJ>& pktraj, double time, double newe, KinKal::VEC3 dmom) {
     auto const& ktraj = pktraj.nearestPiece(time);
     if(newe > pktraj.mass()) {
       // sample the momentum and position at this time
-      auto dir = ktraj.direction(time);
+      auto momdir = (ktraj.momentum3(time) + dmom).Unit();
       auto endpos = ktraj.position3(time);
       double mass = ktraj.mass();
       // correct the momentum for the energy change
-      auto newmom = sqrt(newe*newe - mass*mass)*dir;
+      auto newmom = sqrt(newe*newe - mass*mass)*momdir;
       // convert to particle state
       KinKal::ParticleState pstate(endpos,newmom,time,mass,ktraj.charge());
       // convert to trajectory, using the piece reference field
