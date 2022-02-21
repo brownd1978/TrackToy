@@ -5,6 +5,8 @@
 #include "KinKal/General/ParticleState.hh"
 #include "KinKal/Trajectory/LoopHelix.hh"
 #include "KinKal/Trajectory/ParticleTrajectory.hh"
+#include "KinKal/MatEnv/SimpleFileFinder.hh"
+#include "KinKal/MatEnv/MatDBInfo.hh"
 #include "TrackToy/General/MuonRange.hh"
 #include "TrackToy/General/FileFinder.hh"
 #include "TrackToy/Detector/Target.hh"
@@ -102,6 +104,9 @@ int main(int argc, char **argv) {
     std::string errmsg = std::string("File doesn't exist" )+ fullfile;
     throw std::invalid_argument(errmsg.c_str());
   }
+  MatEnv::SimpleFileFinder ttfinder(std::string("TRACKTOY_SOURCE_DIR"),std::string("/Data/"));
+  cout << "Using Materials file " << ttfinder.matMtrDictionaryFileName() << endl;
+  MatEnv::MatDBInfo matdb_(ttfinder,MatEnv::DetMaterial::moyalmean);
   string line,name;
   long long nb, npot;
   getline(tgt_stream, line); // skip first line
@@ -128,6 +133,7 @@ int main(int argc, char **argv) {
   unsigned seed = static_cast<unsigned>(rint(nsecs));
   //  cout << "Nsecs " << nsecs << " seed " << seed << endl;
   TRandom3 tr_(seed); // random number generator
+//  Target target(matdb_,tfile,tr_);
   Target target(tfile,tr_);
   auto const& tgtcyl = target.cylinder();
   target.print(cout);

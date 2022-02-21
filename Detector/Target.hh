@@ -7,7 +7,7 @@
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/EStar.hh"
-#include "KinKal/MatEnv/ELossDistributions.hh"
+#include "TrackToy/General/ELossDistributions.hh"
 #include "KinKal/General/BFieldMap.hh"
 #include "KinKal/General/TimeRange.hh"
 #include "TRandom3.h"
@@ -40,7 +40,6 @@ namespace TrackToy {
   };
 
   template<class PKTRAJ> bool Target::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections,double tol) const {
-    using KinKal::MoyalDist;
     bool retval(false);
     intersections.clear();
     // extend to the  of the target or exiting the BField (backwards)

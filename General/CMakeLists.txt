@@ -1,6 +1,7 @@
 
 add_library(General SHARED
     MuonRange.cc
+    ELossDistributions.cc
 )
 
 # set top-level directory as include root

@@ -275,6 +275,7 @@ int main(int argc, char **argv) {
   cout << "Random seed " << seed << endl;
   TRandom3 tr_(seed); // random number generator
   // setup target
+//  Target target(matdb_,targetfile,tr_);
   Target target(targetfile,tr_);
   target.print(cout);
   // setup ipa

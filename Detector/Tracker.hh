@@ -6,7 +6,7 @@
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "KinKal/MatEnv/MatDBInfo.hh"
-#include "KinKal/MatEnv/ELossDistributions.hh"
+#include "TrackToy/General/ELossDistributions.hh"
 #include "KinKal/General/Vectors.hh"
 #include "KinKal/Trajectory/Line.hh"
 #include "KinKal/Detector/StrawXing.hh"
@@ -214,7 +214,6 @@ namespace TrackToy {
 
   template <class KTRAJ> void Tracker::updateTraj(KinKal::BFieldMap const& bfield,
       KinKal::ParticleTrajectory<KTRAJ>& mctraj, const KinKal::ElementXing<KTRAJ>* sxing) const {
-    using KinKal::MoyalDist;
     // simulate energy loss and multiple scattering from this xing
     auto txing = sxing->crossingTime();
     auto const& endpiece = mctraj.nearestPiece(txing);
@@ -228,7 +227,7 @@ namespace TrackToy {
    // note materialEffects returns the normalized energy change
     MoyalDist edist(MoyalDist::MeanRMS(fabs(dmom[KinKal::MomBasis::momdir_])*mom,sqrt(momvar[KinKal::MomBasis::momdir_])),10);
     // radiation energy loss model
-    KinKal::BremssLoss bLoss;
+    BremssLoss bLoss;
     for(int idir=0;idir<=KinKal::MomBasis::phidir_; idir++) {
       auto mdir = static_cast<KinKal::MomBasis::Direction>(idir);
       double momsig = sqrt(momvar[idir]);
@@ -236,7 +235,7 @@ namespace TrackToy {
       double dm;
       double radFrac = sxing->radiationFraction()/10; // convert to cm
       // only include wall material for now TODO
-      KinKal::DeltaRayLoss dLoss(&(sxing->matXings()[0].dmat_), mom,sxing->matXings()[0].plen_/10.0, endpiece.mass());
+      DeltaRayLoss dLoss(&(sxing->matXings()[0].dmat_), mom,sxing->matXings()[0].plen_/10.0, endpiece.mass());
       dLoss.setCutOffEnergy(0.001); // 1 KeV
       // generate a random effect given this variance and mean.  Note momEffect is scaled to momentum
       switch( mdir ) {
