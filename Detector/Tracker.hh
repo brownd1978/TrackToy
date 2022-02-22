@@ -81,19 +81,19 @@ namespace TrackToy {
       std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>>& hits,
       std::vector<std::shared_ptr<KinKal::ElementXing<KTRAJ>>>& xings,
       std::vector<KinKal::TimeRange>& tinters, double tol) const {
+    using KinKal::TimeRange;
     double tstart = mctraj.back().range().begin();
     double speed = mctraj.speed(tstart);
     double tstep = cellRadius()/speed;
     // find intersections with tracker
-    cylinder().intersect(mctraj,tinters,tstart,tstep);
-    //    std::cout << "ninters " << tinters.size() << std::endl;
-    for(auto const& tinter : tinters) {
-      double clen = tinter.range()*speed;
-      //
+    TimeRange trange = cylinder().intersect(mctraj,tstart,tstep);
+    while( (!trange.null()) && trange.end() < mctraj.range().end()) {
+      double clen = trange.range()*speed;
       if(clen > minpath_){
+        tinters.push_back(trange);
         unsigned ncells = (unsigned)floor(clen*cellDensity_);
-        double hstep = tinter.range()/(ncells+1);
-        double htime = tinter.begin()+0.5*hstep;
+        double hstep = trange.range()/(ncells+1);
+        double htime = trange.begin()+0.5*hstep;
         for(unsigned icell=0;icell<ncells;++icell){
           // extend the trajectory to this time
           extendTraj(bfield,mctraj,htime,tol);
@@ -107,6 +107,7 @@ namespace TrackToy {
           htime += hstep;
         }
       }
+      trange = cylinder().intersect(mctraj,trange.end(),tstep);
     }
   }
 
@@ -127,7 +128,7 @@ namespace TrackToy {
       static double pi_over_3 = M_PI/3.0;
       // generate azimuthal angle WRT the hit
       double wphi = tr_.Uniform(0.0,pi_over_3);
-// acceptance test, using a triangular inner hole
+      // acceptance test, using a triangular inner hole
       double rmax = 0.5*cyl_.rmax()/cos(wphi);
       if(pos.Rho() < rmax)return false;
       auto rdir = PerpVector(pos,zdir).Unit(); // radial direction
