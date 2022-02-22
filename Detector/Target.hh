@@ -59,18 +59,17 @@ namespace TrackToy {
       TimeRange trange = cyl_.intersect(pktraj,tstart,tstep);
       while( (!trange.null()) && trange.end() < pktraj.range().end()) {
         double speed = pktraj.speed(trange.mid());
-        double plen = trange.range()*speed;
+        double plen = std::max(trange.range()*speed, minpath_);
         // require a physical minimum
-        if(plen < minpath_)plen = tr_.Uniform(0.0,minpath_);
         intersections.push_back(trange);
         double energy = pktraj.energy(trange.mid());
         auto momvec = pktraj.momentum3(trange.mid());
         double mom = momvec.R();
         // to get physical results, scale the path
+//        double estarde = electronEnergyLoss(energy-pktraj.mass(),plen);
         plen *= pfactor;
         double demean = mat_->energyLoss(mom,plen,pktraj.mass());
         double derms = mat_->energyLossRMS(mom,plen,pktraj.mass());
-//        std::cout << "Target demean " << demean << " derms " << derms << std::endl;
         MoyalDist edist(MoyalDist::MeanRMS(fabs(demean),derms),moyalterms_);
         double ionloss = edist.sample(tr_.Uniform(0.0,1.0));
         // add radiative energy loss.  note we have to convert to cm!!!
@@ -83,6 +82,7 @@ namespace TrackToy {
         double totloss = ionloss + bremloss + dloss;
         //        std::cout << "Target Ionization eloss = " << ionloss << " Delta eloss " << dloss << " rad eloss "  << bremloss << " tot " << totloss << std::endl;
         energy -= totloss;
+//        std::cout << "Target demean " << demean << " derms " << derms << " estar de " << estarde << " totlos " << totloss << std::endl;
         // scattering
         double scatterRMS = mat_->scatterAngleRMS(mom,plen,pktraj.mass());
         //          std::cout << "scatterRMS " << scatterRMS << std::endl;
