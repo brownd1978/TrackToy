@@ -81,19 +81,19 @@ namespace TrackToy {
       std::vector<std::shared_ptr<KinKal::Hit<KTRAJ>>>& hits,
       std::vector<std::shared_ptr<KinKal::ElementXing<KTRAJ>>>& xings,
       std::vector<KinKal::TimeRange>& tinters, double tol) const {
+    using KinKal::TimeRange;
     double tstart = mctraj.back().range().begin();
     double speed = mctraj.speed(tstart);
     double tstep = cellRadius()/speed;
     // find intersections with tracker
-    cylinder().intersect(mctraj,tinters,tstart,tstep);
-    //    std::cout << "ninters " << tinters.size() << std::endl;
-    for(auto const& tinter : tinters) {
-      double clen = tinter.range()*speed;
-      //
+    TimeRange trange = cylinder().intersect(mctraj,tstart,tstep);
+    while( (!trange.null()) && trange.end() < mctraj.range().end()) {
+      double clen = trange.range()*speed;
       if(clen > minpath_){
+        tinters.push_back(trange);
         unsigned ncells = (unsigned)floor(clen*cellDensity_);
-        double hstep = tinter.range()/(ncells+1);
-        double htime = tinter.begin()+0.5*hstep;
+        double hstep = trange.range()/(ncells+1);
+        double htime = trange.begin()+0.5*hstep;
         for(unsigned icell=0;icell<ncells;++icell){
           // extend the trajectory to this time
           extendTraj(bfield,mctraj,htime,tol);
@@ -107,6 +107,7 @@ namespace TrackToy {
           htime += hstep;
         }
       }
+      trange = cylinder().intersect(mctraj,trange.end(),tstep);
     }
   }
 
@@ -127,7 +128,7 @@ namespace TrackToy {
       static double pi_over_3 = M_PI/3.0;
       // generate azimuthal angle WRT the hit
       double wphi = tr_.Uniform(0.0,pi_over_3);
-// acceptance test, using a triangular inner hole
+      // acceptance test, using a triangular inner hole
       double rmax = 0.5*cyl_.rmax()/cos(wphi);
       if(pos.Rho() < rmax)return false;
       auto rdir = PerpVector(pos,zdir).Unit(); // radial direction
@@ -214,6 +215,7 @@ namespace TrackToy {
 
   template <class KTRAJ> void Tracker::updateTraj(KinKal::BFieldMap const& bfield,
       KinKal::ParticleTrajectory<KTRAJ>& mctraj, const KinKal::ElementXing<KTRAJ>* sxing) const {
+    static unsigned moyalterms_(20); // number of terms in Moyal expansion
     // simulate energy loss and multiple scattering from this xing
     auto txing = sxing->crossingTime();
     auto const& endpiece = mctraj.nearestPiece(txing);
@@ -225,7 +227,7 @@ namespace TrackToy {
     sxing->materialEffects(mctraj,KinKal::TimeDir::forwards, dmom, momvar);
 //   std::cout << "DMOM " << dmom[0] << std::endl;
    // note materialEffects returns the normalized energy change
-    MoyalDist edist(MoyalDist::MeanRMS(fabs(dmom[KinKal::MomBasis::momdir_])*mom,sqrt(momvar[KinKal::MomBasis::momdir_])),10);
+    MoyalDist edist(MoyalDist::MeanRMS(fabs(dmom[KinKal::MomBasis::momdir_])*mom,sqrt(momvar[KinKal::MomBasis::momdir_])),moyalterms_);
     // radiation energy loss model
     BremssLoss bLoss;
     for(int idir=0;idir<=KinKal::MomBasis::phidir_; idir++) {
@@ -234,9 +236,8 @@ namespace TrackToy {
       double ionloss, bremloss, dloss;
       double dm;
       double radFrac = sxing->radiationFraction()/10; // convert to cm
-      // only include wall material for now TODO
+      // only include wall material for now; gas can be added later TODO
       DeltaRayLoss dLoss(&(sxing->matXings()[0].dmat_), mom,sxing->matXings()[0].plen_/10.0, endpiece.mass());
-      dLoss.setCutOffEnergy(0.001); // 1 KeV
       // generate a random effect given this variance and mean.  Note momEffect is scaled to momentum
       switch( mdir ) {
         case KinKal::MomBasis::perpdir_: case KinKal::MomBasis::phidir_ :

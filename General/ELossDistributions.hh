@@ -26,7 +26,7 @@ namespace TrackToy {
 
       MoyalDist(MeanRMS const& meanrms, int max = 20):_mean(meanrms.Mean_),_rms(meanrms.RMS_),_kmax(max) {
         //Variance of moyal = (pi * sigma)^2 /2
-        _sigma = std::sqrt(2.0) * _rms / M_PI ;
+        _sigma = M_SQRT2 * _rms / M_PI ;
         _mode = _mean - _sigma * MFACTOR;
         setCoeffs(_kmax);
       }
