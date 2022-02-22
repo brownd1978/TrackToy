@@ -45,7 +45,7 @@ namespace TrackToy {
     }
 
     double y = sum;
-    double x = _mode - 2 * _sigma * std::log ((std::sqrt(2.) * y));
+    double x = _mode - 2 * _sigma * std::log (M_SQRT2 * y);
     return x;
   }
 

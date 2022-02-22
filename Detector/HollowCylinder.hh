@@ -55,8 +55,7 @@ namespace TrackToy {
     double ttest = tstart;
     auto pos = pktraj.position3(ttest);
     bool inside = isInside(pos);
-    TimeRange trange;
-    if(inside) trange = TimeRange(ttest,ttest);
+    TimeRange trange(tstart,tstart);
     while(ttest < pktraj.range().end()){
       //      cout << "particle enters at " << pos << endl;
       auto vel = pktraj.velocity(ttest);

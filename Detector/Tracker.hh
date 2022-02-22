@@ -214,6 +214,7 @@ namespace TrackToy {
 
   template <class KTRAJ> void Tracker::updateTraj(KinKal::BFieldMap const& bfield,
       KinKal::ParticleTrajectory<KTRAJ>& mctraj, const KinKal::ElementXing<KTRAJ>* sxing) const {
+    static unsigned moyalterms_(20); // number of terms in Moyal expansion
     // simulate energy loss and multiple scattering from this xing
     auto txing = sxing->crossingTime();
     auto const& endpiece = mctraj.nearestPiece(txing);
@@ -225,7 +226,7 @@ namespace TrackToy {
     sxing->materialEffects(mctraj,KinKal::TimeDir::forwards, dmom, momvar);
 //   std::cout << "DMOM " << dmom[0] << std::endl;
    // note materialEffects returns the normalized energy change
-    MoyalDist edist(MoyalDist::MeanRMS(fabs(dmom[KinKal::MomBasis::momdir_])*mom,sqrt(momvar[KinKal::MomBasis::momdir_])),10);
+    MoyalDist edist(MoyalDist::MeanRMS(fabs(dmom[KinKal::MomBasis::momdir_])*mom,sqrt(momvar[KinKal::MomBasis::momdir_])),moyalterms_);
     // radiation energy loss model
     BremssLoss bLoss;
     for(int idir=0;idir<=KinKal::MomBasis::phidir_; idir++) {
@@ -234,9 +235,8 @@ namespace TrackToy {
       double ionloss, bremloss, dloss;
       double dm;
       double radFrac = sxing->radiationFraction()/10; // convert to cm
-      // only include wall material for now TODO
+      // only include wall material for now; gas can be added later TODO
       DeltaRayLoss dLoss(&(sxing->matXings()[0].dmat_), mom,sxing->matXings()[0].plen_/10.0, endpiece.mass());
-      dLoss.setCutOffEnergy(0.001); // 1 KeV
       // generate a random effect given this variance and mean.  Note momEffect is scaled to momentum
       switch( mdir ) {
         case KinKal::MomBasis::perpdir_: case KinKal::MomBasis::phidir_ :

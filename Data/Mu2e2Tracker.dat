@@ -1,7 +1,7 @@
 #
 #  Parameters describing the Mu2e-ii tracker
 # Volume information: rmin rmax zpos zhalf
-365.0 700.0 0.0 1500.0
+365.0 700.0 0.0 1450.0
 # Cell information: orientation (0=azimuthal, 1=axial), Ncells, cell radius, cell length, wall thickness, wire radius, minimum path
 0 20736 2.5 800.0 0.008 0.0125 100
 # material information: wall, gas, and wire

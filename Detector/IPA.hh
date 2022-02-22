@@ -32,6 +32,7 @@ namespace TrackToy {
   template<class PKTRAJ> bool IPA::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections,double tol) const {
     using KinKal::VEC3;
     using KinKal::TimeRange;
+    static unsigned moyalterms_(20); // number of terms in Moyal expansion
     intersections.clear();
     // record the end of the previous extension; this is where new extensions start
     double tstart = pktraj.back().range().begin();
@@ -47,18 +48,21 @@ namespace TrackToy {
       while( (!trange.null()) && trange.end() < pktraj.range().end()) {
         intersections.push_back(trange);
         double energy = pktraj.energy(trange.mid());
+        auto momvec = pktraj.momentum3(trange.mid());
+        double mom = momvec.R();
         double plen = pktraj.speed(trange.mid())*trange.range();
         // Moyal dist. models ionization loss
-        double demean = mat_->energyLoss(energy,plen,pktraj.mass());
-        double derms = mat_->energyLossRMS(energy,plen,pktraj.mass());
+        double demean = mat_->energyLoss(mom,plen,pktraj.mass());
+        double derms = mat_->energyLossRMS(mom,plen,pktraj.mass());
         // model ionization energy loss using a Moyal distribution
-        MoyalDist edist(MoyalDist::MeanRMS(fabs(demean), derms),10);
+//        std::cout << "IPA demean " << demean << " derms " << derms << std::endl;
+        MoyalDist edist(MoyalDist::MeanRMS(fabs(demean), derms),moyalterms_);
         double ionloss = edist.sample(tr_.Uniform(0.0,1.0));
         // add radiative energy loss.  note we have to convert to cm!!!
         double radFrac = mat_->radiationFraction(trange.range())/10;
         BremssLoss bLoss;
         double bremloss = bLoss.sampleSSPGamma(energy,radFrac);
-        // delta energy loss
+        // delta energy loss; note unit change mm->cm!
         DeltaRayLoss dLoss(mat_, energy,plen/10, pktraj.mass());
         double dloss = dLoss.sampleDRL();
         double totloss = ionloss + bremloss + dloss;
@@ -67,8 +71,6 @@ namespace TrackToy {
         energy -= totloss;
         //          std::cout << "old energy " << oldenergy << " new energy " << energy << std::endl;
         // scattering
-        auto momvec = pktraj.momentum3(trange.mid());
-        double mom = momvec.R();
         double scatterRMS = mat_->scatterAngleRMS(mom,plen,pktraj.mass());
         // generate random momentum scatter
         VEC3 phidir = VEC3(momvec.Y(),-momvec.X(),0.0).Unit();

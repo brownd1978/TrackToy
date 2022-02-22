@@ -62,7 +62,8 @@ namespace TrackToy {
           double tx = ttest - tstep*fabs(dr/(dr-olddr));
           // compute the crossing time range
           auto vel = pktraj.velocity(tx);
-          double dt = rhalf_/vel.Rho();
+          double vr = vel.Rho();
+          double dt = vr > 1e-8 ?  rhalf()/vr : 2.0*sqrt(2.0*radius()*rhalf())/vel.R();
           trange = TimeRange(tx-dt,tx+dt);
           break;
         }

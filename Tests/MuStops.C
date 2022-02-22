@@ -6,7 +6,7 @@
 #include "TCanvas.h"
 #include "TStyle.h"
 #include "TLegend.h"
-void MuStop() {
+void MuStops() {
   TFile *mubeam = TFile::Open("/Users/brownd/data/sim.mu2e.MuBeamCat.MDC2020k.001201_00000000.art");
   TTree* bevents = (TTree*)mubeam->Get("Events");
   TH1F* mumom = new TH1F("mumom","Muon momentum;Momentum (MeV/c)",120,0,120.0);
