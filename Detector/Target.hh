@@ -7,9 +7,11 @@
 #include "TrackToy/Detector/HollowCylinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/EStar.hh"
-#include "KinKal/MatEnv/ELossDistributions.hh"
+#include "TrackToy/General/ELossDistributions.hh"
 #include "KinKal/General/BFieldMap.hh"
 #include "KinKal/General/TimeRange.hh"
+#include "KinKal/MatEnv/MatDBInfo.hh"
+#include "KinKal/MatEnv/DetMaterial.hh"
 #include "TRandom3.h"
 #include <string>
 #include <vector>
@@ -20,7 +22,7 @@ namespace TrackToy {
     public:
       using TimeRanges = std::vector<KinKal::TimeRange>;
       enum Material{unknown=-1,Al=1,Ti=2};
-      Target(std::string const& tgtfile,TRandom& tr); // construct from a structured text file
+      Target(MatEnv::MatDBInfo const& matdbinfo, std::string const& tgtfile,TRandom& tr); // construct from a structured text file
       double density() const { return density_;} // gm/cm^3
       auto cylinder() const { return cyl_; }
       // find the  energy loss (mean and RMS) from estar for a path through the target
@@ -31,7 +33,8 @@ namespace TrackToy {
       template<class PKTRAJ> bool extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj,TimeRanges& intersections,double tol=1e-4) const;
       void print(std::ostream& os) const;
     private:
-      Material mat_;
+      Material matname_;
+      const MatEnv::DetMaterial* mat_;
       EStar estar_; // energystar table
       HollowCylinder cyl_;
       double density_;
@@ -40,31 +43,56 @@ namespace TrackToy {
   };
 
   template<class PKTRAJ> bool Target::extendTrajectory(KinKal::BFieldMap const& bfield, PKTRAJ& pktraj, TimeRanges& intersections,double tol) const {
-    using KinKal::MoyalDist;
-    bool retval(false);
+    using KinKal::VEC3;
+    using KinKal::TimeRange;
     intersections.clear();
+    static double pfactor = 0.001*density_/mat_->density(); // unit conversion cm->mm, and scale for the effective density
+//    std::cout << "density factor" << pfactor << std::endl;
     // extend to the  of the target or exiting the BField (backwards)
-    retval = extendZ(pktraj,bfield, cyl_.zmax(), tol);
+    bool retval = extendZ(pktraj,bfield, cyl_.zmax(), tol);
     //    cout << "Z target extend " << ztgt << endl;
     if(retval){ // make sure we didn't exit the BField upstream
       // first find the intersections.
       double tstart = pktraj.range().begin();
       double tstep = 3.0/pktraj.speed(tstart);
-      cyl_.intersect(pktraj,intersections,tstart,tstep);
-      if(intersections.size() > 0){
-        double energy = pktraj.energy(intersections.front().begin());
-        double speed = pktraj.speed(intersections.front().begin());
-        for (auto const& range : intersections) {
-          // in a real target there's a minimum pathlength, equal to ~1 foil
-          double pathlen = std::max(range.range()*speed,minpath_);
-          // should check for particle type FIXME!
-          double demean = electronEnergyLoss(energy-pktraj.mass(),pathlen);
-          MoyalDist edist(MoyalDist::MeanRMS(demean,demean),10);
-          double de = std::max(0.0,edist.sample(tr_.Uniform(0.0,1.0)));
-//          std::cout << "Targe demean " << demean << " de " << de << std::endl;
-          energy -= de;
+      TimeRange trange = cyl_.intersect(pktraj,tstart,tstep);
+      while( (!trange.null()) && trange.end() < pktraj.range().end()) {
+        double speed = pktraj.speed(trange.mid());
+        double plen = trange.range()*speed;
+        if(plen > minpath_){
+          intersections.push_back(trange);
+          double energy = pktraj.energy(trange.mid());
+          // to get physical results, scale the path
+          plen *= pfactor;
+          double demean = mat_->energyLoss(energy,plen,pktraj.mass());
+          double derms = mat_->energyLossRMS(energy,plen,pktraj.mass());
+          MoyalDist edist(MoyalDist::MeanRMS(fabs(demean),derms),10);
+          double ionloss = edist.sample(tr_.Uniform(0.0,1.0));
+          // add radiative energy loss.  note we have to convert to cm!!!
+          double radFrac = mat_->radiationFraction(trange.range())/10;
+          BremssLoss bLoss;
+          double bremloss = bLoss.sampleSSPGamma(energy,radFrac);
+          // delta energy loss
+          DeltaRayLoss dLoss(mat_, energy,plen/10, pktraj.mass());
+          double dloss = dLoss.sampleDRL();
+          double totloss = ionloss + bremloss + dloss;
+          //        std::cout << "Target Ionization eloss = " << ionloss << " Delta eloss " << dloss << " rad eloss "  << bremloss << " tot " << totloss << std::endl;
+          energy -= totloss;
+          // scattering
+          auto momvec = pktraj.momentum3(trange.mid());
+          double mom = momvec.R();
+          double scatterRMS = mat_->scatterAngleRMS(mom,plen,pktraj.mass());
+//          std::cout << "scatterRMS " << scatterRMS << std::endl;
+          // generate random momentum scatter
+          VEC3 phidir = VEC3(momvec.Y(),-momvec.X(),0.0).Unit();
+          double momtan = tan(momvec.Theta());
+          VEC3 thedir = VEC3(momvec.X()/momtan,momvec.Y()/momtan,-momvec.Z()*momtan).Unit();
+          auto dmom = tr_.Gaus(0.0,scatterRMS)*mom*phidir + tr_.Gaus(0.0,scatterRMS)*mom*thedir;
+//          std::cout << "phidot " << momvec.Dot(dmom) << " dmag = " << mom - (momvec + dmom).R() << std::endl;
+          retval = updateEnergy(pktraj,trange.mid(),energy,dmom);
+          if(!retval)break;
         }
-        retval = updateEnergy(pktraj,intersections.back().end(),energy);
+        trange = cyl_.intersect(pktraj,trange.end(),tstep);
       }
     }
     return retval;

@@ -6,6 +6,8 @@ set( MAIN_FILES
   BField_test.cc
   MuStops_test.cc
   Tracks_test.cc
+  ELossDists_unit.cc
+  MoyalDist_unit.cc
 )
 # Generate test targets
 foreach( mainfile ${MAIN_FILES} )

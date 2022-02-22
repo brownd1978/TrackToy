@@ -94,7 +94,7 @@ int makeConfig(string const& cfile, KinKal::Config& config) {
           // setup and insert the updater
           cout << "SimpleWireHitUpdater with mindoca " << mindoca << " maxdoca " << maxdoca << " minprob " << minprob << endl;
           SimpleWireHitUpdater updater(mindoca,maxdoca,minprob);
-          mconfig.updaters_.push_back(std::any(updater));
+          mconfig.addUpdater(std::any(updater));
         }
         config.schedule_.push_back(mconfig);
       }
@@ -107,9 +107,9 @@ int main(int argc, char **argv) {
   using KTRAJ=LoopHelix;
   using PKTRAJ = ParticleTrajectory<KTRAJ>;
   using KKTRK = Track<KTRAJ>;
-  using KKHIT = HitConstraint<KTRAJ>;
+  using KKHIT = Measurement<KTRAJ>;
   using KKMAT = Material<KTRAJ>;
-  using KKBF = BFieldEffect<KTRAJ>;
+  using KKBF = BField<KTRAJ>;
   using Clock = std::chrono::high_resolution_clock;
   int ntrks(100);
   string bfile("Data/DSMapDump.dat"), mstops("MDC2020n_10pc"), targetfile("Data/Mu2eTarget.dat"), trackerfile("Data/Mu2eTracker.dat");
@@ -275,7 +275,8 @@ int main(int argc, char **argv) {
   cout << "Random seed " << seed << endl;
   TRandom3 tr_(seed); // random number generator
   // setup target
-  Target target(targetfile,tr_);
+  Target target(matdb_,targetfile,tr_);
+//  Target target(targetfile,tr_);
   target.print(cout);
   // setup ipa
   IPA ipa(matdb_,ipafile,tr_);
