@@ -46,7 +46,7 @@ namespace TrackToy {
     using KinKal::VEC3;
     using KinKal::TimeRange;
     intersections.clear();
-    static double pfactor = 0.001*density_/mat_->density(); // unit conversion cm->mm
+    static double pfactor = 0.001*density_/mat_->density(); // unit conversion cm->mm, and scale for the effective density
 //    std::cout << "density factor" << pfactor << std::endl;
     // extend to the  of the target or exiting the BField (backwards)
     bool retval = extendZ(pktraj,bfield, cyl_.zmax(), tol);

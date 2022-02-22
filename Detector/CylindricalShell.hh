@@ -64,6 +64,7 @@ namespace TrackToy {
           auto vel = pktraj.velocity(tx);
           double dt = rhalf_/vel.Rho();
           trange = TimeRange(tx-dt,tx+dt);
+          break;
         }
         olddr = dr;
       } else {
