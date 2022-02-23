@@ -58,6 +58,8 @@ namespace TrackToy {
       double tstep = 3.0/pktraj.speed(tstart);
       TimeRange trange = cyl_.intersect(pktraj,tstart,tstep);
       while( (!trange.null()) && trange.end() < pktraj.range().end()) {
+        // re-extend if necessary
+        extendZ(pktraj,bfield, cyl_.zmax(), tol);
         double speed = pktraj.speed(trange.mid());
         double plen = std::max(trange.range()*speed, minpath_);
         // require a physical minimum

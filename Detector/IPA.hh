@@ -46,6 +46,7 @@ namespace TrackToy {
       static double tstep(0.01);
       TimeRange trange = cyl_.intersect(pktraj,tstart,tstep);
       while( (!trange.null()) && trange.end() < pktraj.range().end()) {
+        extendZ(pktraj,bfield, cyl_.zmax(), tol);
         intersections.push_back(trange);
         double energy = pktraj.energy(trange.mid());
         auto momvec = pktraj.momentum3(trange.mid());

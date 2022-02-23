@@ -432,7 +432,7 @@ int main(int argc, char **argv) {
     double mom = sqrt(origine_*origine_ - emass*emass);
     originmom_ = VEC3(mom*sint*cos(phi),mom*sint*sin(phi),mom*cost);
     ParticleState cestate(originpos_,originmom_,origintime_,emass,-1);
-    TimeRange range(cestate.time(),cestate.time()+1000.0); // much longer than physical: is truncated later
+    TimeRange range(cestate.time(),cestate.time()+10000.0); // much longer than physical: is truncated later
     auto bstart = bfield->fieldVect(cestate.position3());
     KTRAJ lhelix(cestate,bstart,range);
     // sim tolerance is smaller than fit
