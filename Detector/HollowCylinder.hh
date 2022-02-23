@@ -105,7 +105,7 @@ namespace TrackToy {
       }
     }
     // finish the last range if we go out of range
-    if(inside)trange = TimeRange(trange.begin(),std::min(ttest,pktraj.range().end()));
+    if(inside)trange = TimeRange(trange.begin(),std::max(trange.end(),std::min(ttest,pktraj.range().end())));
     return trange;
   }
 }
