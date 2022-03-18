@@ -40,7 +40,7 @@ namespace TrackToy {
           double radius, rhalf, zpos, zhalf;
           iss >> radius >> rhalf >> zpos >> zhalf;
           if(radius < 0.0 || rhalf < 0.0 || zhalf < 0.0)throw std::invalid_argument("Invalid CylindricalShell parameters");\
-            cyl_ = CylindricalShell(radius,rhalf,zpos,zhalf);
+            cyl_ = KinKal::CylindricalShell(radius,rhalf,zpos,zhalf);
         } else if (type_ == propeller) {
           throw std::invalid_argument("Propeller IPA not currently supported");\
         }

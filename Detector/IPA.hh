@@ -5,13 +5,14 @@
 #define TrackToy_Detector_IPA_hh
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/MatEnv/DetMaterial.hh"
+#include "KinKal/Detector/CylindricalShell.hh"
 #include "TrackToy/General/ELossDistributions.hh"
 #include "KinKal/General/TimeRange.hh"
 #include "TrackToy/General/TrajUtilities.hh"
-#include "TrackToy/Detector/CylindricalShell.hh"
 #include "TRandom3.h"
 namespace TrackToy {
   class IPA {
+    using TimeRanges = std::vector<KinKal::TimeRange>;
     public:
       enum IPAType { unknown=-1, cylindrical=1, propeller };
       IPA(MatEnv::MatDBInfo const& matdbinfo,std::string const& file,TRandom& tr);
@@ -23,7 +24,7 @@ namespace TrackToy {
       void print(std::ostream& os) const;
     private:
       IPAType type_;
-      CylindricalShell cyl_;
+      KinKal::CylindricalShell cyl_;
       const MatEnv::DetMaterial* mat_;
       TRandom& tr_; // random number generator
   };
