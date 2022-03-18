@@ -10,6 +10,8 @@ set( MAIN_FILES
   MoyalDist_test.cc
 )
 # Generate test targets
+message("Root Libraries" ${ROOT_LIBRARIES} )
+message("KinKal Libraries" ${KINKAL_LIBRARIES} )
 foreach( mainfile ${MAIN_FILES} )
     # get the name of the test test from the source path
     # (strip _test.cc, and the path preceding the basename)
