@@ -217,7 +217,7 @@ namespace TrackToy {
       KinKal::ParticleTrajectory<KTRAJ>& mctraj, const KinKal::ElementXing<KTRAJ>* sxing) const {
     static unsigned moyalterms_(20); // number of terms in Moyal expansion
     // simulate energy loss and multiple scattering from this xing
-    auto txing = sxing->crossingTime();
+    auto txing = sxing->time();
     auto const& endpiece = mctraj.nearestPiece(txing);
     auto endmom = endpiece.momentum4(txing);
     KinKal::VEC3 momvec = endmom.Vect();
