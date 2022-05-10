@@ -16,7 +16,6 @@
 #include "TRandom3.h"
 #include "TLegend.h"
 #include "TTree.h"
-#include "TTreeReader.h"
 #include "TBranch.h"
 #include "TH1F.h"
 #include "TH2F.h"
@@ -116,11 +115,25 @@ int main(int argc, char **argv) {
   cout << "Beam muon/POT = " << beameff << " for dataset " << name << endl;
   // find the TTree in the mbfile
   TDirectory* td = (TDirectory*)mubeamfile->Get("StepPointMCDumper");
-  TTreeReader reader("nt",td);
-  ParticleState ps;
-  cout << "pstate " << ps.momentum3() << endl;
-  TTreeReaderValue<ParticleState> pstate(reader, "particle");
   TTree* ptree = (TTree*)td->Get("nt");
+
+  Double_t        state__fArray[6];
+  Double_t        time_;
+  Double_t        mass_;
+  Int_t           charge_;
+  // List of branches
+  TBranch        *b_particle_state__fArray;   //!
+  TBranch        *b_particle_time_;   //!
+  TBranch        *b_particle_mass_;   //!
+  TBranch        *b_particle_charge_;   //!
+  ptree->SetBranchAddress("state_.fArray[6]", state__fArray, &b_particle_state__fArray);
+  ptree->SetBranchAddress("time_", &time_, &b_particle_time_);
+  ptree->SetBranchAddress("mass_", &mass_, &b_particle_mass_);
+  ptree->SetBranchAddress("charge_", &charge_, &b_particle_charge_);
+  ptree->GetEntry(0);
+  SVEC6 psvec(state__fArray,6);
+  ParticleState ps(psvec,time_, mass_, charge_);
+  cout << "pstate " << ps.momentum3() << endl;
   cout << "MuonBeam particle TTree from file " << mbfile << " has " << ptree->GetEntries() << " Entries" << endl;
   // setup BField
   fullfile = filefinder.fullFile(bfile);
@@ -159,30 +172,29 @@ int main(int argc, char **argv) {
   TH2F* musxypos = new TH2F("musxypos","Muon stop XY position;X (mm);Y (mm)",40,-80.0,80,40,-80.0,80.0);
   unsigned nstopped(0), nmu(0);
   if(nbeam < 0)nbeam = ptree->GetEntries();
+  int ipos(0);
   while (ibeam < nbeam) {
-    if(!reader.Next()){
-      reader.Restart();
-      if(!reader.Next()){
-        cout << "Unable to rewind file" << mubeamfile << endl;
-        return -2;
-      }
-    }
+    ++ipos;
+    if(ipos >= ptree->GetEntries())ipos=0;
+    ptree->GetEntry(ipos);
+    SVEC6 psvec(state__fArray,6);
+    ps = ParticleState(psvec,time_, mass_, charge_);
     // select by mass
-    if(pstate->mass() > minmass){
+    if(ps.mass() > minmass){
       ++ibeam;
       // find the range for this muon (in mm)
-      double murange = muonrange.rangeMomentum(pstate->momentum3().R());
-      //      cout << "Found muon with momementum " << pstate->momentum3().R() << " range " << murange << endl;
+      double murange = muonrange.rangeMomentum(ps.momentum3().R());
+      //      cout << "Found muon with momementum " << ps.momentum3().R() << " range " << murange << endl;
       // build the trajectory
-      TimeRange range(pstate->time(),pstate->time()+(axfield.zMax()-pstate->position3().Z())/pstate->velocity().Z());
-      //      cout << "range " << range << " bpos " << pstate->position3() << endl;
-      auto bstart = axfield.fieldVect(pstate->position3());
+      TimeRange range(ps.time(),ps.time()+(axfield.zMax()-ps.position3().Z())/ps.velocity().Z());
+      //      cout << "range " << range << " bpos " << ps.position3() << endl;
+      auto bstart = axfield.fieldVect(ps.position3());
       //      cout << "bstart " << bstart << endl;
-      KTRAJ lhelix(*pstate,bstart,range);
+      KTRAJ lhelix(ps,bstart,range);
       //    cout << "Initial trajectory " << lhelix << endl;
       // initialize piecetraj
       PKTRAJ ptraj(lhelix);
-      auto pos = pstate->position3();
+      auto pos = ps.position3();
       // extend to the end of the target
       while(pos.Z() < tgtcyl.zmax()){
         range = KinKal::TimeRange(axfield.rangeInTolerance(ptraj.back(),range.begin(),tol),range.end());
@@ -201,7 +213,7 @@ int main(int argc, char **argv) {
       //       << " to " << ptraj.position3(ptraj.range().end()) << endl;
       TimeRanges tranges;
       double speed = ptraj.velocity(ptraj.range().begin()).R();// assume constant speed
-      double tstart = pstate->time();
+      double tstart = ps.time();
       tgtcyl.intersect(ptraj,tranges,tstart,tstep);
       //      cout << "Found " << tranges.size() << " Intersecting ranges, with boundaries:" << endl;
       double path(0.0);
@@ -223,13 +235,13 @@ int main(int argc, char **argv) {
       //            cout << "intersecting path = " << path << " with range " << murange << endl;
       if(stopped){
         ++nstopped;
-        mumoms->Fill(pstate->momentum3().R());
+        mumoms->Fill(ps.momentum3().R());
         muszpos->Fill(stoppos.Z()-tgtcyl.zpos());
         musxypos->Fill(stoppos.X(),stoppos.Y());
         mustime->Fill(stoppos.T());
         mustops->Fill();
       } else {
-        mumomn->Fill(pstate->momentum3().R());
+        mumomn->Fill(ps.momentum3().R());
       }
       ++nmu;
     }
