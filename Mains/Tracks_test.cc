@@ -9,7 +9,7 @@
 #include "KinKal/MatEnv/MatDBInfo.hh"
 #include "KinKal/MatEnv/DetMaterial.hh"
 #include "KinKal/Fit/Track.hh"
-#include "KinKal/Examples/ScintHit.hh"
+#include "KinKal/Detector/ScintHit.hh"
 #include "TrackToy/General/FileFinder.hh"
 #include "TrackToy/General/TrajUtilities.hh"
 #include "TrackToy/Detector/HollowCylinder.hh"
@@ -25,7 +25,6 @@
 #include "TDirectory.h"
 #include "TLegend.h"
 #include "TTree.h"
-#include "TTreeReader.h"
 #include "TBranch.h"
 #include "TH1F.h"
 #include "TH2F.h"
@@ -87,14 +86,22 @@ int makeConfig(string const& cfile, KinKal::Config& config) {
         plevel;
         config.plevel_ = Config::printLevel(plevel);
       } else {
-        double temp, mindoca(-1.0),maxdoca(-1.0), minprob(-1.0);
-        ss >> temp >> mindoca >> maxdoca >> minprob;
+        int utype(-1);
+        double temp, mindoca(-1.0),maxdoca(-1.0);
+        ss >> temp >> utype;
         MetaIterConfig mconfig(temp);
-        if(mindoca >0.0 || maxdoca > 0.0){
-          // setup and insert the updater
-          cout << "SimpleWireHitUpdater with mindoca " << mindoca << " maxdoca " << maxdoca << " minprob " << minprob << endl;
-          SimpleWireHitUpdater updater(mindoca,maxdoca,minprob);
+        if(utype == 0 ){
+          cout << "NullWireHitUpdater" << endl;
+          mconfig.addUpdater(std::any(NullWireHitUpdater()));
+        } else if(utype == 1) {
+         // setup and insert the updater
+          ss >> mindoca >> maxdoca;
+          cout << "DOCAWireHitUpdater with mindoca " << mindoca << " maxdoca " << maxdoca << endl;
+          DOCAWireHitUpdater updater(mindoca,maxdoca);
           mconfig.addUpdater(std::any(updater));
+        } else if(utype > 0){
+          cout << "Unknown updater " << utype << endl;
+          return -20;
         }
         config.schedule_.push_back(mconfig);
       }
@@ -247,11 +254,25 @@ int main(int argc, char **argv) {
     cout << "MuStop file " << mfile << " not found: did you forget to run MuStops_test?   terminating" << endl;
     return 1;
   }
-  // find the TTree in the pfile
-  TTreeReader reader("MuStops",mustopsfile);
-  TTreeReaderValue<VEC4> mustoppos(reader, "Pos");
   TTree* mtree = (TTree*)mustopsfile->Get("MuStops");
-  if(ntrks<0)ntrks = mtree->GetEntries();
+   Double32_t      fCoordinates_fX;
+   Double32_t      fCoordinates_fY;
+   Double32_t      fCoordinates_fZ;
+   Double32_t      fCoordinates_fT;
+
+   // List of branches
+   TBranch        *b_Pos_fCoordinates_fX;   //!
+   TBranch        *b_Pos_fCoordinates_fY;   //!
+   TBranch        *b_Pos_fCoordinates_fZ;   //!
+   TBranch        *b_Pos_fCoordinates_fT;   //!
+   mtree->SetBranchAddress("fCoordinates.fX", &fCoordinates_fX, &b_Pos_fCoordinates_fX);
+   mtree->SetBranchAddress("fCoordinates.fY", &fCoordinates_fY, &b_Pos_fCoordinates_fY);
+   mtree->SetBranchAddress("fCoordinates.fZ", &fCoordinates_fZ, &b_Pos_fCoordinates_fZ);
+   mtree->SetBranchAddress("fCoordinates.fT", &fCoordinates_fT, &b_Pos_fCoordinates_fT);
+
+  int nmustops = mtree->GetEntries();
+  int imustop(0);
+  if(ntrks<0)ntrks = nmustops;
 // get stop efficiency (per pot)
   mfile = mstops + string("MuonStopEff.txt");
   ifstream mstopeffstream(mfile,std::ios_base::in);
@@ -391,15 +412,12 @@ int main(int argc, char **argv) {
   auto start = Clock::now();
   while (itrk_ < ntrks) {
     ++itrk_;
-    if(fmod(itrk_,ntrks/10) == 0)cout << "Processing track " << itrk_ << endl;
+    ++imustop;
+    if(imustop >= nmustops)imustop = 0;
+    mtree->GetEntry(imustop);
+    VEC4 mupos(fCoordinates_fX, fCoordinates_fY, fCoordinates_fZ, fCoordinates_fT);
+    if(fmod(itrk_,ntrks/10) == 0)cout << "Processing track " << itrk_ << " pos " << mupos << endl;
     tinfo_.reset();
-    if(!reader.Next()){
-      reader.Restart();
-      if(!reader.Next()){
-        cout << "Unable to rewind file" << mustopsfile << endl;
-        return -2;
-      }
-    }
     //    cout << "Track " << itrk_ << endl;
     // reset tree variables
     targetde_ = ipade_ = trackerde_ = 0.0;
@@ -426,9 +444,8 @@ int main(int argc, char **argv) {
     double phi = tr_.Uniform(-M_PI,M_PI);
     double cost = tr_.Uniform(-1.0,1.0);
     double sint = sqrt(1.0-cost*cost);
-    VEC4 const& pos4 = *mustoppos;
-    originpos_ = pos4.Vect();
-    origintime_ = tdecay+pos4.T(); // add decay time to stopping time
+    originpos_ = mupos.Vect();
+    origintime_ = tdecay+mupos.T(); // add decay time to stopping time
     double mom = sqrt(origine_*origine_ - emass*emass);
     originmom_ = VEC3(mom*sint*cos(phi),mom*sint*sin(phi),mom*cost);
     ParticleState cestate(originpos_,originmom_,origintime_,emass,-1);
@@ -460,7 +477,6 @@ int main(int argc, char **argv) {
         // now create hits and straw intersections
         std::vector<std::shared_ptr<Hit<KTRAJ>>> hits;
         std::vector<std::shared_ptr<ElementXing<KTRAJ>>> xings;
-        double speed = mctraj.speed(mctraj.range().end());
         // if the tracker field is different from the general field, change the trajector bnom
         if(trkfield != bfield){
           double tent = ztime(mctraj,mctraj.back().range().begin(),tracker.zMin());
@@ -476,10 +492,6 @@ int main(int argc, char **argv) {
         tinfo_.narcs = trackerinters.size();
         if(hits.size() >= minnhits){
 // calcluate the estart energy loss
-          double trackerpath(0.0);
-          for(auto const& inter : trackerinters) { trackerpath += speed*inter.range(); }
-//          double ke = cestate.energy() - cestate.mass();
-//          trackerde_ = -100*trackerEStar.dEIonization(ke)*tracker.density()*trackerpath; // unit conversion
           trackere_ = mctraj.energy(mctraj.range().end());
           trackerde_ = trackere_ - ipae_;
           tarde->Fill(targetde_);

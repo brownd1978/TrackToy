@@ -10,7 +10,7 @@
 #include "KinKal/Trajectory/Line.hh"
 #include "TRandom3.h"
 #include "Math/VectorUtil.h"
-#include "KinKal/Examples/ScintHit.hh"
+#include "KinKal/Detector/ScintHit.hh"
 #include <array>
 #include <string>
 #include <vector>
