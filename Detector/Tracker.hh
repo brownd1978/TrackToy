@@ -251,7 +251,7 @@ namespace TrackToy {
           bremloss = bLoss.sampleSSPGamma(mom,radFrac);
           dloss = dLoss.sampleDRL();
 //          std::cout << "Tracker Ionization eloss = " << ionloss << " Delta eloss " << dloss << " rad eloss "  << bremloss << std::endl;
-          dm = std::max(-(ionloss+bremloss+dloss),-mom); // must be positive
+          dm = std::max(-(ionloss),-mom); // must be positive
           break;
         default:
           throw std::invalid_argument("Invalid direction");
